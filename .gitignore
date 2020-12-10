@@ -1,0 +1,6 @@
+build
+src/clash/*.hi
+src/clash/*.o
+src/clash/*.dyn*
+src/clash/verilog
+src/clash/vhdl
