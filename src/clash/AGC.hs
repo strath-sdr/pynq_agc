@@ -11,21 +11,6 @@ parseThresholds True  False = undefined
 isAtk GLow = True
 isAtk _    = False
 
--- TODO, this should be an AXI stream, not a Signal
-sigDetect
-  :: HiddenClockResetEnable dom
-  => Num a
-  => Ord a
-  => Num b
-  => NFDataX b
-  => Ord b
-  => Signal dom a -> Signal dom b -> Signal dom a -> Signal dom a -> Signal dom Bool
-sigDetect noise_floor count i q = floorCount .>=. count
-  where floorCount = register 0 floorCount'
-        floorCount' = mux ((abs i .<. noise_floor) .&&. (abs q .<. noise_floor))
-                          (floorCount + 1)
-                           0
-
 pulseGen n = count .==. 0
   where count = delay 0 count'
         count' = mux (count .==. 0)
@@ -36,8 +21,8 @@ satWith limit x = if (x >= limit) then limit else x
 
 agc
   :: (HiddenClockResetEnable dom,
-      NFDataX cycles, NFDataX sig, NFDataX gain, Ord sig,
-      Ord gain, Ord cycles, SaturatingNum gain, Num cycles, Num sig, Num gain,
+      NFDataX cycles, NFDataX gain,
+      Ord gain, Ord cycles, SaturatingNum gain, Num cycles, Num gain,
       Eq cycles)
      => gain
      -> Signal dom gain
@@ -45,19 +30,15 @@ agc
      -> Signal dom gain
      -> Signal dom cycles
      -> Signal dom gain
-     -> Signal dom sig
-     -> Signal dom cycles
      -> Signal dom Bool
      -> Signal dom Bool
-     -> Signal dom sig
-     -> Signal dom sig
      -> Signal dom gain
-agc defG atkStep atkN decStep decN maxG noiseFloor timeout thUpper thLower i q = gain
+agc defG atkStep atkN decStep decN maxG thUpper thLower = gain
   where
   state = liftA2 parseThresholds thUpper thLower
   step = mux (isAtk <$> state) atkStep decStep
   n    = mux (isAtk <$> state) atkN decN
-  en = pulseGen n -- .&&. sigDetect noiseFloor timeout i q
+  en = pulseGen n
   gain  = regEn defG en (inc <$> state <*> maxG <*> gain <*> step)
   inc s maxG gain step = case s of
                            GLow  -> satWith maxG $ satAdd SatBound gain step
@@ -80,17 +61,13 @@ agcTopLevel
   -> Signal XilDom TGain
   -> Signal XilDom TCycles
   -> Signal XilDom TGain
-  -> Signal XilDom TSignal
-  -> Signal XilDom TCycles
   -> Signal XilDom Bit
   -> Signal XilDom Bit
-  -> Signal XilDom TSignal
-  -> Signal XilDom TSignal
   -> Signal XilDom TGain
-agcTopLevel clk rst en atkStep atkN decStep decN maxG noiseFloor timeout thUpper thLower i q
-  = exposeClockResetEnable (agc 31)
-    clk rst (toEnable $ bitToBool <$> en) atkStep atkN decStep decN maxG noiseFloor timeout
-    (bitToBool <$> thUpper) (bitToBool <$> thLower) i q
+agcTopLevel clk rst en atkStep atkN decStep decN maxG thUpper thLower
+  = exposeClockResetEnable (agc 0)
+    clk rst (toEnable $ bitToBool <$> en) atkStep atkN decStep decN maxG
+    (bitToBool <$> thUpper) (bitToBool <$> thLower)
 
 {-# ANN agcTopLevel
   (Synthesize
@@ -103,8 +80,6 @@ agcTopLevel clk rst en atkStep atkN decStep decN maxG noiseFloor timeout thUpper
                  , PortName "dec_step"
                  , PortName "dec_n"
                  , PortName "max_g"
-                 , PortName "noise_floor"
-                 , PortName "timeout"
                  , PortName "thres_high"
                  , PortName "thres_low"
                  ]
