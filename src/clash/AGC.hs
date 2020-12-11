@@ -11,65 +11,57 @@ parseThresholds True  False = undefined
 isAtk GLow = True
 isAtk _    = False
 
+satWith limit x = if (x >= limit) then limit else x
+
 pulseGen n = count .==. 0
   where count = delay 0 count'
         count' = mux (count .==. 0)
                      n
                      (count-1)
 
-satWith limit x = if (x >= limit) then limit else x
-
 agc
   :: (HiddenClockResetEnable dom,
-      NFDataX cycles, NFDataX gain,
-      Ord gain, Ord cycles, SaturatingNum gain, Num cycles, Num gain,
-      Eq cycles)
-     => gain
-     -> Signal dom gain
-     -> Signal dom cycles
-     -> Signal dom gain
-     -> Signal dom cycles
-     -> Signal dom gain
+      NFDataX a, SaturatingNum a, Num a, Ord a,
+      NFDataX b, SaturatingNum b, Num b, Ord b
+     )
+     => Signal dom a
+     -> Signal dom b
+     -> Signal dom a
+     -> Signal dom b
+     -> Signal dom a
      -> Signal dom Bool
      -> Signal dom Bool
-     -> Signal dom gain
-agc defG atkStep atkN decStep decN maxG thUpper thLower = gain
+     -> Signal dom a
+agc atkStep atkN decStep decN maxG thU thL = z
   where
-  state = liftA2 parseThresholds thUpper thLower
-  step = mux (isAtk <$> state) atkStep decStep
-  n    = mux (isAtk <$> state) atkN decN
+  dir = liftA2 parseThresholds thU thL
+  n = mux (isAtk <$> dir) atkN decN
   en = pulseGen n
-  gain  = regEn defG en (inc <$> state <*> maxG <*> gain <*> step)
-  inc s maxG gain step = case s of
-                           GLow  -> satWith maxG $ satAdd SatBound gain step
-                           GHigh ->                satSub SatBound gain step
-                           GOk   -> gain
-
-createDomain vXilinxSystem{vName="XilDom", vResetPolarity=ActiveLow}
+  z  = regEn 0 en (inc <$> dir <*> atkStep <*> decStep <*> maxG <*> z)
+  inc s up down limit g = case s of
+                            GLow  -> satWith limit $ satAdd SatBound g up
+                            GHigh -> satSub SatBound g down
+                            GOk   -> g
 
 type TGain = Unsigned 6
 type TCycles = Unsigned 32
-type TSignal = Signed 16
+createDomain vXilinxSystem{vName="XilDom", vResetPolarity=ActiveLow}
 
--- TODO we should have two clock domains, one for configuration and one for DATA
-agcTopLevel
+topLevel
   :: Clock  XilDom
   -> Reset  XilDom
-  -> Signal XilDom Bit
+  -> Enable XilDom
   -> Signal XilDom TGain
   -> Signal XilDom TCycles
   -> Signal XilDom TGain
   -> Signal XilDom TCycles
   -> Signal XilDom TGain
-  -> Signal XilDom Bit
-  -> Signal XilDom Bit
+  -> Signal XilDom Bool
+  -> Signal XilDom Bool
   -> Signal XilDom TGain
-agcTopLevel clk rst en atkStep atkN decStep decN maxG thUpper thLower
-  = exposeClockResetEnable (agc 0)
-    clk rst (toEnable $ bitToBool <$> en) atkStep atkN decStep decN maxG
-    (bitToBool <$> thUpper) (bitToBool <$> thLower)
+topLevel = exposeClockResetEnable agc
 
-{-# ANN agcTopLevel
+{-# ANN topLevel
   (Synthesize
     { t_name   = "agc"
     , t_inputs = [ PortName "clk"

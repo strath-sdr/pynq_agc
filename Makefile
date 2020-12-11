@@ -1,10 +1,13 @@
 CLASH = clash
 BUILD_DIR = build/clash/AGC.hs
 VHDL = build/clash/vhdl/Main/agc/agc.vhd
+IP = build/xil/ip/component.xml
 
-all: vivado_loopback
+all: ip
 
 vhdl: $(VHDL)
+
+ip: $(IP)
 
 build_dir: $(BUILD_DIR)
 
@@ -14,6 +17,9 @@ $(BUILD_DIR):
 
 $(VHDL): $(BUILD_DIR)
 	cd build/clash; $(CLASH) -fclash-hdlsyn Vivado --vhdl AGC.hs;
+
+$(IP): $(VHDL)
+	cd build/xil; vivado -mode batch -source vivado.tcl
 
 # vivado_loopback: verilog
 # 	cd build/xil; vivado -mode tcl -source prj_loopback.tcl

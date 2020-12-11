@@ -17,8 +17,6 @@ entity agc_v1_0 is
 	port (
 		-- Users to add ports here
 		gain : out std_logic_vector(5 downto 0);
-		i : in std_logic_vector(15 downto 0);
-		q : in std_logic_vector(15 downto 0);
     thres_high : in std_logic;
     thres_low : in std_logic;
 
@@ -82,8 +80,6 @@ architecture arch_imp of agc_v1_0 is
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic;
 		gain : out std_logic_vector(5 downto 0);
-		i : in std_logic_vector(15 downto 0);
-		q : in std_logic_vector(15 downto 0);
     thres_high : in std_logic;
     thres_low : in std_logic
 		);
@@ -119,8 +115,6 @@ agc_v1_0_S00_AXI_inst : agc_axi_wrapper
 		S_AXI_RRESP	=> s00_axi_rresp,
 		S_AXI_RVALID	=> s00_axi_rvalid,
 		S_AXI_RREADY	=> s00_axi_rready,
-    i   => i,
-    q   => q,
     gain => gain,
     thres_high => thres_high,
     thres_low  => thres_low

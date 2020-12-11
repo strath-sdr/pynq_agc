@@ -19,8 +19,6 @@ entity agc_axi_wrapper is
 	port (
 		-- Users to add ports here
 		gain : out std_logic_vector(5 downto 0);
-		i : in std_logic_vector(15 downto 0);
-		q : in std_logic_vector(15 downto 0);
     thres_high : in std_logic;
     thres_low : in std_logic;
 
@@ -128,6 +126,7 @@ architecture arch_imp of agc_axi_wrapper is
 	signal byte_index	: integer;
 	signal aw_en	: std_logic;
 
+  signal gain_sig : std_logic_vector(5 downto 0);
 	component agc is
       port(-- clock
         clk         : in agc_types.clk_xildom;
@@ -139,12 +138,8 @@ architecture arch_imp of agc_axi_wrapper is
         dec_step    : in unsigned(5 downto 0);
         dec_n       : in unsigned(31 downto 0);
         max_g       : in unsigned(5 downto 0);
-        noise_floor : in signed(15 downto 0);
-        timeout     : in unsigned(31 downto 0);
         thres_high  : in std_logic;
         thres_low   : in std_logic;
-        i           : in signed(15 downto 0);
-        q           : in signed(15 downto 0);
         gain        : out unsigned(5 downto 0));
     end component;
 
@@ -422,7 +417,8 @@ begin
 	      when b"100" =>
 	        reg_data_out <= slv_reg4;
 	      when b"101" =>
-	        reg_data_out <= slv_reg5;
+	        reg_data_out(5 downto 0) <= gain_sig;
+            reg_data_out(31 downto 6) <= (others => '0');
 	      when b"110" =>
 	        reg_data_out <= slv_reg6;
 	      when others =>
@@ -452,25 +448,22 @@ begin
 	-- Add user logic here
     IP_CORE: agc port map (
         clk => S_AXI_ACLK,
-        rst => S_AXI_ARESETN,
+        aresetn => S_AXI_ARESETN,
         en  => '1',
         -- AXI signals
-        atk_step    => slv_reg0(5 downto 0),
-        atk_n       => slv_reg1(31 downto 0),
-        dec_step    => slv_reg2(5 downto 0),
-        dec_n       => slv_reg3(31 downto 0),
-        max_g       => slv_reg4(5 downto 0),
-        noise_floor => slv_reg5(15 downto 0),
-        timeout     => slv_reg6(31 downto 0),
+        atk_step    => unsigned(slv_reg0(5 downto 0)),
+        atk_n       => unsigned(slv_reg1(31 downto 0)),
+        dec_step    => unsigned(slv_reg2(5 downto 0)),
+        dec_n       => unsigned(slv_reg3(31 downto 0)),
+        max_g       => unsigned(slv_reg4(5 downto 0)),
 
         -- Non-axi signals
-        i   => i,
-        q   => q,
-        gain => gain,
+        std_logic_vector(gain) => gain_sig,
         thres_high => thres_high,
         thres_low  => thres_low
         );
 
+  gain <= gain_sig;
 	-- User logic ends
 
 end arch_imp;
