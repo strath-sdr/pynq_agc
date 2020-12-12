@@ -13,7 +13,17 @@ Note that the datasheet shows us how Vc affects gain... it's not quite linear
 db -> bits. While there, add a register to disable the output and handle the 4th
 condition of thresholds.
 
+for gain vs v_c
 https://www.nooelec.com/store/downloads/dl/file/id/103/product/334/vega_datasheet_revision_1.pdf
+
+for dsp bit widths https://www.xilinx.com/support/documentation/user_guides/ug579-ultrascale-dsp.pdf
+
+for some background on approximations https://www.wiley.com/en-nl/Arithmetic+Circuits+for+DSP+Applications-p-9781119206774
+
+docs for curve fitting https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
+
+textbook for the eetimes blog https://www.vlebooks.com/vleweb/Product/Index/40057?page=0
+eetimes blog for AGC https://www.eetimes.com/wireless-101-automatic-gain-control-agc/#
 
 # 2)
 

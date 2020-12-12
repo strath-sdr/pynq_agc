@@ -4,3 +4,5 @@ src/clash/*.o
 src/clash/*.dyn*
 src/clash/verilog
 src/clash/vhdl
+*.xopp~
+notebook/.ipynb_checkpoints

@@ -133,11 +133,11 @@ architecture arch_imp of agc_axi_wrapper is
         -- reset
         aresetn     : in agc_types.rst_xildom;
         en          : in std_logic;
-        atk_step    : in unsigned(5 downto 0);
+        atk_step    : in unsigned(17 downto 0);
         atk_n       : in unsigned(31 downto 0);
-        dec_step    : in unsigned(5 downto 0);
+        dec_step    : in unsigned(17 downto 0);
         dec_n       : in unsigned(31 downto 0);
-        max_g       : in unsigned(5 downto 0);
+        max_g       : in unsigned(17 downto 0);
         thres_high  : in std_logic;
         thres_low   : in std_logic;
         gain        : out unsigned(5 downto 0));
@@ -417,10 +417,10 @@ begin
 	      when b"100" =>
 	        reg_data_out <= slv_reg4;
 	      when b"101" =>
-	        reg_data_out(5 downto 0) <= gain_sig;
-            reg_data_out(31 downto 6) <= (others => '0');
+	        reg_data_out <= slv_reg5;
 	      when b"110" =>
-	        reg_data_out <= slv_reg6;
+	        reg_data_out(5 downto 0) <= gain_sig;
+          reg_data_out(31 downto 6) <= (others => '0');
 	      when others =>
 	        reg_data_out  <= (others => '0');
 	    end case;
@@ -449,13 +449,13 @@ begin
     IP_CORE: agc port map (
         clk => S_AXI_ACLK,
         aresetn => S_AXI_ARESETN,
-        en  => '1',
+        en  => slv_reg5(0),
         -- AXI signals
-        atk_step    => unsigned(slv_reg0(5 downto 0)),
+        atk_step    => unsigned(slv_reg0(17 downto 0)),
         atk_n       => unsigned(slv_reg1(31 downto 0)),
-        dec_step    => unsigned(slv_reg2(5 downto 0)),
+        dec_step    => unsigned(slv_reg2(17 downto 0)),
         dec_n       => unsigned(slv_reg3(31 downto 0)),
-        max_g       => unsigned(slv_reg4(5 downto 0)),
+        max_g       => unsigned(slv_reg4(17 downto 0)),
 
         -- Non-axi signals
         std_logic_vector(gain) => gain_sig,
