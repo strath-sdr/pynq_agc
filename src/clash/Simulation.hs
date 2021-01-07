@@ -35,24 +35,51 @@ import Data.Reflection (reifyNat)
 
 createDomain vSystem{vName="SyncDefined", vInitBehavior=Defined}
 
-sim = let iqs' = map (\(i,q)->(shiftR i 5, shiftR q 5)) $ sinInputComplex 1 0.01
-          iqs = L.take 3000 iqs' ++ map (\(i,q)->(shiftR i 2, shiftR q 2)) iqs'
+sim = let iqs' = map (\(i,q)->(shiftR i 1, shiftR q 1)) $ sinInputComplex 1 0.01
+          iqs = L.take 3000 iqs' ++ map (\(i,q)->(shiftR i 5, shiftR q 5)) iqs'
           ref = 6 :: UFixed 6 6
           window = 100 :: Unsigned 7
-          alpha = 0.25 :: UFixed 0 4
+          alpha = 1.0 :: UFixed 0 4
           fLog = Clash.d6
           fGain = Clash.d10
           out_gain = Clash.simulate @System (uncurry (digiAgcMult window (pure ref) (pure alpha)). unbundle) iqs
-     --     out_gains_d = map (fromIntegral) out_gain
-        --  out_gains_d = map ufToDouble out_gain
-      in map (zip [1..]) [ map (ufToDouble   . (\(x,_,_)->x)) out_gain
-                         ,  map (fromIntegral . (\(_,x,_)->x)) out_gain
+      in map (zip [1..]) [ --map (ufToDouble   . (\(x,_,_)->x)) out_gain
+                           map (fromIntegral . (\(_,x,_)->x)) out_gain
                          , map (fromIntegral . (\(_,_,x)->x)) out_gain
                          ]
-      --                   --, map ufToDouble out_gain]
-      --in map (zip [1..]) [ zipWith (*) out_gains_d $ map (fromIntegral . fst) iqs
-      --                   --, zipWith (*) out_gains_d $ map (fromIntegral . snd) iqs  ]
-      --                   , out_gains_d]
+
+{-
+Just thinking about sensible wordlengths for RFSoC...
+
+Our input is always 16 bits.
+
+==========
+
+This will likely be after decimation, used inside the user's RX digital logic so we can expect deal with sampling rates well below the 4 GSamples/s... say probably a max of 512 MHz.
+
+How many window bits are needed for a period of 1 ms?
+
+1e-3 * 512e6 = 18.9 ... let's just say 19
+
+==========
+
+Fullscale signal after log will be...
+
+after ID; we need (nWindow + nSig) bits (35!!!)
+after log10; we need (1+log2 35) bits (9) and fLog fractional bits, let's say 9.fLog
+after sub with ref; we need 10.fLog
+after mul with alpha we need (10+ia).(fLog+fa)
+
+{ What should alpha's range be to allow a good selection of response times? }
+
+After the antilog, our wordlength increases exponentially! We should be super
+careful about growing our wordlengths in the log domain.
+
+==========
+
+nSig = 16
+nWindow = 19
+-}
 
 -- God holp us
 

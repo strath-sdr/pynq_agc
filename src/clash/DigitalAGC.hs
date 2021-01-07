@@ -112,7 +112,7 @@ digiAgc fLog _ window ref alpha i q =
 
       err = fmap (fmap calcErr) . fmap (\(a,b,x) -> fmap (\x->(a,b,x)) x) $ bundle (alpha, ref, smoothPower)
 
-      logCtrl' = liftA2 (\m x -> fmap (boundedAdd x) m)  err logCtrl
+      logCtrl' = liftA2 (\m x -> fmap (boundedAdd x) m)  err logCtrl -- should I be worried about this accumulating negatively?
       logCtrl = regMaybe 0 logCtrl'
 
       ctrl = fmap (lutAntilog10 . toUF) logCtrl
