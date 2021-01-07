@@ -85,8 +85,24 @@ intgDump window = mealy f (window, 0)
   where f (0,acc) x = ((window, 0    ), Just acc)
         f (n,acc) x = ((n-1   , acc+x), Nothing )
 
-type IRef nSig nWindow = 1 + CLog 2 (nSig + nWindow)
-type NCtrl nSig nWindow iAlpha = 2 ^ ((3 + (CLog 2 (nSig + nWindow) + iAlpha)) + 2)
+-- A new I&D circuit that only supports powers of two windows, but does normalisation of the output via shifts.
+intgDumpPow2
+  :: forall dom window n . (HiddenClockResetEnable dom, KnownNat window, KnownNat n)
+  => Signal dom (Unsigned window) -> Signal dom (Unsigned n) -> Signal dom (Maybe (Unsigned n))
+intgDumpPow2 window x = mealy f initState (bundle (x, window))
+  where initState :: (Unsigned (2^window), Unsigned (2^window + n))
+        initState = (0,0)
+        f (0, acc) (x, window) = ( ( setBit zeroBits (fromIntegral window)                         -- window counter
+                                   , 0)                                                            -- accumulator
+                                 , Just . resize $ shiftR acc (fromIntegral $ boundedSub window 1) -- output
+                                 )
+        f (n, acc) (x, window) = ( ( n-1                                                           -- window counter
+                                   , acc+resize x)                                                 -- accumulator
+                                 , Nothing                                                         -- output
+                                 )
+
+type IRef nSig = 1 + CLog 2 nSig
+type NCtrl nSig iAlpha = 2 ^ ((3 + (CLog 2 nSig + iAlpha)) + 2)
 
 digiAgc :: forall dom fLog nWindow nSig iAlpha fAlpha fGain .
             ( HiddenClockResetEnable dom
@@ -94,19 +110,19 @@ digiAgc :: forall dom fLog nWindow nSig iAlpha fAlpha fGain .
             , KnownNat nSig   , KnownNat fGain
             , KnownNat iAlpha , KnownNat fAlpha
             , 1<=nSig
-            , fGain <= NCtrl nSig nWindow iAlpha
+            , fGain <= NCtrl nSig iAlpha
             )
           => SNat fLog
           -> SNat fGain
-          -> Unsigned nWindow -- ^ I&D window length
-          -> Signal dom (UFixed (IRef nSig nWindow) fLog) -- ^ Reference power
+          -> Signal dom (Unsigned nWindow) -- ^ I&D window length
+          -> Signal dom (UFixed (IRef nSig ) fLog) -- ^ Reference power
           -> Signal dom (UFixed iAlpha fAlpha) -- ^ Alpha
           -> Signal dom (Signed nSig)
           -> Signal dom (Signed nSig)
-          -> Signal dom (UFixed (NCtrl nSig nWindow iAlpha - fGain) fGain)
+          -> Signal dom (UFixed (NCtrl nSig iAlpha - fGain) fGain)
 digiAgc fLog _ window ref alpha i q =
-  let smoothPower :: Signal dom (Maybe (Unsigned (nSig + nWindow)))
-      smoothPower = intgDump window . fmap extend $  liftA2 powerDetector i q
+  let smoothPower :: Signal dom (Maybe (Unsigned nSig))
+      smoothPower = intgDumpPow2 window $ liftA2 powerDetector i q
 
       calcErr (alpha, ref, x) = mul (toSF alpha) . (sub (toSF ref)) .  toSF $ lutLog10 fLog x
 
@@ -119,12 +135,12 @@ digiAgc fLog _ window ref alpha i q =
   in uf (SNat :: SNat fGain) <$> ctrl
 
 digiAgcMult :: forall dom . (HiddenClockResetEnable dom)
-            => Unsigned 7 -- ^ I&D window length
-            -> Signal dom (UFixed 6 6) -- ^ Reference power
+            => Signal dom (Unsigned 5) -- ^ I&D window length
+            -> Signal dom (UFixed 5 6) -- ^ Reference power
             -> Signal dom (UFixed 0 4) -- ^ Alpha
             -> Signal dom (Signed 16)
             -> Signal dom (Signed 16)
-            -> Signal dom (UFixed 1014 10, Signed 16, Signed 16)
+            -> Signal dom (UFixed 502 10, Signed 16, Signed 16)
 digiAgcMult w r a i q = let g = digiAgc (SNat :: SNat 6) (SNat :: SNat 10) w r a i' q'
                             g' = toSF <$> g
                             preMul x y = unSF (resizeF $ (sf d0 x) `mul` y :: SFixed 16 0)

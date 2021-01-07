@@ -37,12 +37,12 @@ createDomain vSystem{vName="SyncDefined", vInitBehavior=Defined}
 
 sim = let iqs' = map (\(i,q)->(shiftR i 1, shiftR q 1)) $ sinInputComplex 1 0.01
           iqs = L.take 3000 iqs' ++ map (\(i,q)->(shiftR i 5, shiftR q 5)) iqs'
-          ref = 6 :: UFixed 6 6
-          window = 100 :: Unsigned 7
-          alpha = 1.0 :: UFixed 0 4
+          ref = 4.5 :: UFixed 5 6
+          window = 7 :: Unsigned 5
+          alpha = 0.5 :: UFixed 0 4
           fLog = Clash.d6
           fGain = Clash.d10
-          out_gain = Clash.simulate @System (uncurry (digiAgcMult window (pure ref) (pure alpha)). unbundle) iqs
+          out_gain = Clash.simulate @System (uncurry (digiAgcMult (pure window) (pure ref) (pure alpha)). unbundle) iqs
       in map (zip [1..]) [ --map (ufToDouble   . (\(x,_,_)->x)) out_gain
                            map (fromIntegral . (\(_,x,_)->x)) out_gain
                          , map (fromIntegral . (\(_,_,x)->x)) out_gain
