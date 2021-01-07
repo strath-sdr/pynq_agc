@@ -24,6 +24,12 @@ mkShell {
       ghc-typelits-knownnat
       ghc-typelits-natnormalise
       zlib
+      plotlyhs
+      lucid
+      dsp
+      pure-fft
+      QuickCheck
+      hspec
     ])
     )
   ];

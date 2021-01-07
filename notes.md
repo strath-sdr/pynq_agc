@@ -30,3 +30,13 @@ eetimes blog for AGC https://www.eetimes.com/wireless-101-automatic-gain-control
 See this excerpt for good discussion of AGC https://www.eetimes.com/wireless-101-automatic-gain-control-agc/#
 
 Good discussion of different detector types here https://www.analog.com/media/en/training-seminars/tutorials/42575412022953450461111812375Design_and_Operation_of_AGC_Loops.pdf
+
+
+# Meeting notes
+
+On AGC design, been looking at making our control signal control the gain linearly.
+See datasheet plot.
+
+Includes some fun digital arithmetic, picking ranges so we can use certain log approximations, using python to model the response and generate it's inverse. Good stuff.
+
+Physical AGC... Looked like there were two options for our control --- hijacking the buttons or generating our own analog signal. hoped to use the buttons. Doesn't look like I can, but will still make it work with the equipment a hobbyist is likely to have lying around. Without more info, I don't know the RF characteristics. There's a twitter post announcing this board that suggests automatic control is possible. I pestered them and have opened a wee nooelec support ticket. This post also says that the cheap $50 deal is temporary... not sure what the price will go up to.

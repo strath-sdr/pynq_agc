@@ -1,4 +1,6 @@
 build
+src/clash/.#*
+src/clash/*.bin
 src/clash/*.hi
 src/clash/*.o
 src/clash/*.dyn*
