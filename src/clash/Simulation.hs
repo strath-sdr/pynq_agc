@@ -35,17 +35,19 @@ import Data.Reflection (reifyNat)
 
 createDomain vSystem{vName="SyncDefined", vInitBehavior=Defined}
 
-sim = let iqs' = map (\(i,q)->(shiftR i 1, shiftR q 1)) $ sinInputComplex 1 0.01
-          iqs = L.take 3000 iqs' ++ map (\(i,q)->(shiftR i 5, shiftR q 5)) iqs'
-          ref = 4.5 :: UFixed 5 6
+simInput = let iqs = map (\(i,q)->(shiftR i 1, shiftR q 1)) $ sinInputComplex 1 0.01
+           in  L.take 3000 iqs ++ map (\(i,q)->(shiftR i 5, shiftR q 5)) iqs
+
+sim = let ref = 4.5 :: UFixed 5 6
           window = 7 :: Unsigned 5
           alpha = 0.5 :: UFixed 0 4
           fLog = Clash.d6
           fGain = Clash.d10
-          out_gain = Clash.simulate @System (uncurry (digiAgcMult (pure window) (pure ref) (pure alpha)). unbundle) iqs
-      in map (zip [1..]) [ --map (ufToDouble   . (\(x,_,_)->x)) out_gain
+          out_gain = Clash.simulate @System (uncurry (digiAgcMult (pure window) (pure ref) (pure alpha)). unbundle) simInput
+      in map (zip [1..]) [
                            map (fromIntegral . (\(_,x,_)->x)) out_gain
                          , map (fromIntegral . (\(_,_,x)->x)) out_gain
+                         , map (ufToDouble   . (\(x,_,_)->x)) out_gain
                          ]
 
 {-
@@ -131,23 +133,29 @@ styleSheet :: Monad m => HtmlT m ()
 styleSheet = style_ [type_ "text/css" ] $
              toHtml (".svg-container {margin: 0 auto !important;}"::String)
 
-main fs sim =
+main n =
     renderToFile "/tmp/clash/test.html" $ doctypehtml_ $ do
     head_ $ do meta_ [charset_ "utf-8"]
                plotlyCDN
                reloadCDN
                styleSheet
     body_ $ do
-               toHtml $ plotly "time_iq" (traceTime tData)
-                          & layout . title ?~ "Time domain I/Q"
-               toHtml $ plotly "constl_iq" (traceConstl tData)
+               toHtml $ plotly "time_iq_in" (traceTime simInputTrace)
+                          & layout . title ?~ "Time domain I/Q Input"
+               toHtml $ plotly "time_iq_out" (traceTime tData)
+                          & layout . title ?~ "Time domain I/Q Output"
+               toHtml $ plotly "constl_iq_out" (traceConstl tData)
                           & layout . title ?~ "Constellation I/Q"
                           & layout . width ?~ 600
                           & layout . height ?~ 600
-               toHtml $ plotly "fft_mag" (traceFFT $ doFFT fs tData)
-                          & layout . title ?~ "Freq domain"
+               toHtml $ plotly "time_iq_ctrl" (traceTime ctrlData)
+                          & layout . title ?~ "Time domain Control"
+--               toHtml $ plotly "fft_mag" (traceFFT $ doFFT fs tData)
+--                          & layout . title ?~ "Freq domain"
   where
-  tData = sim
+  tData = map (L.take n) sim :: [[(Double, Double)]]
+  ctrlData = [tData !! 2, tData !! 2]
+  simInputTrace = map (L.take n . zip [(1::Double)..] . map (sfToDouble . sf Clash.d0))  [map fst simInput, map snd simInput]
 
 traceTime a =  [trace "I" $ a !! 0
                ,trace "Q" $ a !! 1]
