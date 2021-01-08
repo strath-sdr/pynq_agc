@@ -38,7 +38,7 @@ createDomain vSystem{vName="SyncDefined", vInitBehavior=Defined}
 simInput = let iqs = map (\(i,q)->(shiftR i 1, shiftR q 1)) $ sinInputComplex 1 0.01
            in  L.take 3000 iqs ++ map (\(i,q)->(shiftR i 5, shiftR q 5)) iqs
 
-sim = let ref = 4.5 :: UFixed 5 6
+sim = let ref = 4.5 :: UFixed 4 6
           window = 7 :: Unsigned 5
           alpha = 0.5 :: UFixed 0 4
           fLog = Clash.d6

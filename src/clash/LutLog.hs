@@ -10,6 +10,7 @@ fLitR' :: forall rep int frac . (KnownNat frac, Bounded (rep (int + frac)), Inte
 fLitR' = fLitR . (+ (1 / (snatToNum $ pow2SNat m)))
   where m = SNat :: SNat (frac+1)
 
+-- Our version of resizeUF' that adds rounding
 resizeUF'
   :: forall int1 frac1 int2 frac2 .
      (KnownNat int1, KnownNat frac1,
@@ -18,7 +19,6 @@ resizeUF'
 resizeUF' = resizeF . add halfstep
   where halfstep :: UFixed 0 (frac2 + 1)
         halfstep = succ 0
-
 
 ufToDouble :: forall n m . (KnownNat n, KnownNat m) => UFixed n m -> Double
 ufToDouble u = fromIntegral (unUF u) / (snatToNum $ pow2SNat (SNat :: SNat m))
@@ -29,8 +29,8 @@ sfToDouble u = fromIntegral (unSF u) / (snatToNum $ pow2SNat (SNat :: SNat m))
 
 -- Log 2
 
-lutLog2I :: forall n m . (KnownNat n, KnownNat m, FracUFixedC 1 m, 1 <= n) => Unsigned n -> UFixed (1 + CLog 2 n) m
-lutLog2I x = logInt `add` logFrac
+lutLog2I :: forall n m . (KnownNat n, KnownNat m, FracUFixedC 1 m, 1 <= n) => Unsigned n -> UFixed ( CLog 2 n) m
+lutLog2I x = resizeF logInt + resizeF logFrac
   where
         ms1 = ifoldl (\acc i b -> if bitToBool b then i else acc) 0
               (reverse . bv2v $ pack x) -- most significant one
@@ -44,7 +44,7 @@ lutLog2I x = logInt `add` logFrac
         logFrac = uf m . unpack $ asyncRomFile (pow2SNat m) (logBinFileName m) addr
         m = SNat :: SNat m
 
-lutLog2 :: forall n m . (KnownNat n, KnownNat m, FracUFixedC 1 m, 1 <= n) => SNat m -> Unsigned n -> UFixed (1 + CLog 2 n) m
+lutLog2 :: forall n m . (KnownNat n, KnownNat m, FracUFixedC 1 m, 1 <= n) => SNat m -> Unsigned n -> UFixed (CLog 2 n) m
 lutLog2 _ = lutLog2I
 
 logBinFileName :: SNat m -> String
@@ -76,7 +76,7 @@ Q.quickCheck $ Q.withMaxSuccess 10000  prop_equal_float
 
 lutLog10I
   :: forall n m . (KnownNat n, KnownNat m, 1 <= n)
-     => Unsigned n -> Fixed Unsigned (1 + CLog 2 n) m
+     => Unsigned n -> Fixed Unsigned (CLog 2 n) m
 lutLog10I = resizeUF' . mul coef . lutLog2 (SNat :: SNat m)  -- truncation with resizef a source of error
   where coef :: UFixed 0 m
         coef = resizeUF' ( $$(fLit . recip $ logBase 2 10) :: UFixed 0 128 )
@@ -85,7 +85,7 @@ lutLog10I = resizeUF' . mul coef . lutLog2 (SNat :: SNat m)  -- truncation with 
 
 lutLog10
   :: forall n m . (KnownNat n, KnownNat m, 1 <= n)
-     => SNat m -> Unsigned n -> Fixed Unsigned (1 + CLog 2 n) m
+     => SNat m -> Unsigned n -> Fixed Unsigned (CLog 2 n) m
 lutLog10 _ = lutLog10I
 
 prop_equal_float_10 = Q.forAll (Q.suchThat Q.arbitrary (>1)) prop_equal_float_10'
@@ -151,8 +151,8 @@ prop_approx_pow2 x = let exp = 2 ** (ufToDouble x)
 
 lutAntilog10
   :: forall n m . (KnownNat n, KnownNat m, 1 <= n)
-  => UFixed n m -> Unsigned (2^(n+2))
-lutAntilog10 = lutAntilog2 . trunc . mul coef
+  => UFixed n m -> Unsigned (CLog 2 (10^(2^n)))
+lutAntilog10 = resize . lutAntilog2 . trunc . mul coef
   where coef :: UFixed 2 m
         coef = resizeUF' ( $$(fLit $ logBase 2 10) :: UFixed 2 128 )
         trunc :: (KnownNat a, KnownNat b) => UFixed a b -> UFixed (n+2) m

@@ -101,8 +101,8 @@ intgDumpPow2 window x = mealy f initState (bundle (x, window))
                                  , Nothing                                                         -- output
                                  )
 
-type IRef nSig = 1 + CLog 2 nSig
-type NCtrl nSig iAlpha = 2 ^ ((3 + (CLog 2 nSig + iAlpha)) + 2)
+type IRef nSig = CLog 2 nSig
+type NCtrl nSig iAlpha = CLog 2 (10 ^ (2 ^ (2 + (CLog 2 nSig + iAlpha))))
 
 digiAgc :: forall dom fLog nWindow nSig iAlpha fAlpha fGain .
             ( HiddenClockResetEnable dom
@@ -136,11 +136,11 @@ digiAgc fLog _ window ref alpha i q =
 
 digiAgcMult :: forall dom . (HiddenClockResetEnable dom)
             => Signal dom (Unsigned 5) -- ^ I&D window length
-            -> Signal dom (UFixed 5 6) -- ^ Reference power
+            -> Signal dom (UFixed 4 6) -- ^ Reference power
             -> Signal dom (UFixed 0 4) -- ^ Alpha
             -> Signal dom (Signed 16)
             -> Signal dom (Signed 16)
-            -> Signal dom (UFixed 502 10, Signed 16, Signed 16)
+            -> Signal dom (UFixed 203 10, Signed 16, Signed 16)
 digiAgcMult w r a i q = let g = digiAgc (SNat :: SNat 6) (SNat :: SNat 10) w r a i' q'
                             g' = toSF <$> g
                             preMul x y = unSF (resizeF $ (sf d0 x) `mul` y :: SFixed 16 0)
