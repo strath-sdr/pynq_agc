@@ -30,6 +30,7 @@ mkShell {
       pure-fft
       QuickCheck
       hspec
+      statistics
     ])
     )
   ];

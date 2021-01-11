@@ -48,9 +48,10 @@ lutLog2 :: forall n m . (KnownNat n, KnownNat m, FracUFixedC 1 m, 1 <= n) => SNa
 lutLog2 _ = lutLog2I
 
 logBinFileName :: SNat m -> String
-logBinFileName m = "loglut_"
-                   L.++ show m
-                   L.++ ".bin"
+logBinFileName m = "loglut.bin"
+                   --"loglut_"   -- Can't synthesize string concat in clash...
+                   --L.++ show m
+                   --L.++ ".bin"
 
 writeLutLogFile :: forall m . KnownNat m => SNat m -> IO ()
 writeLutLogFile m = do
@@ -129,9 +130,10 @@ lutAntilog2 x = y
               ) xInt :: UFixed (2^n) 0)) xInt
 
 antilogBinFileName :: SNat m -> String
-antilogBinFileName m = "antiloglut_"
-                       L.++ show m
-                       L.++ ".bin"
+antilogBinFileName m = "antiloglut.bin"
+                       --"antiloglut_"
+                       --L.++ show m
+                       --L.++ ".bin"
 
 writeLutAntilogFile :: forall m . KnownNat m => SNat m -> IO ()
 writeLutAntilogFile m = do

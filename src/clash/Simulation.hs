@@ -11,6 +11,7 @@ import Clash.Prelude (UFixed, Unsigned, Signed,
   createDomain, simulate, vInitBehavior, vName, vSystem, InitBehavior(..), shiftR,
   snatToNum, SFixed(..), sf, unSF, unbundle, bundle, df, SNat(..), Vec(..), System, simulate_lazy, listToVecTH, Nat, knownDomain, KnownDomain(..), HiddenClockResetEnable)
 import Control.Monad (forM_)
+import Data.Maybe (fromMaybe)
 import qualified Data.List as L
 
 import Lucid
@@ -33,16 +34,42 @@ import Data.List (sort)
 import Test.QuickCheck
 import Data.Reflection (reifyNat)
 
+import Statistics.Sample
+import qualified Data.Vector.Unboxed as V
+
 createDomain vSystem{vName="SyncDefined", vInitBehavior=Defined}
 
 simInput = let iqs = map (\(i,q)->(shiftR i 1, shiftR q 1)) $ sinInputComplex 1 0.01
-           in  L.take 3000 iqs ++ map (\(i,q)->(shiftR i 5, shiftR q 5)) iqs
+           in  L.take 3000 iqs ++ map (\(i,q)->(shiftR i 4, shiftR q 4)) iqs
 
-sim = let ref = 4.5 :: UFixed 4 6
+-- from 1.25 to 0.75... our ref is basically divided by 4, so this makes sense for a 100x range
+-- we have 0.5 range with 6 frac bits => resolution of 1/64, so 32 sensible settings for our signal height.
+-- This is all with alpha = 0.9375 and a window of 7
+-- Window doesn't really affect this too much
+-- Alpha seems to?
+
+-- we have a 2.6 log word ( really 4.4)
+
+-- a = 0.9375 and window = 128 ~ 1.5k         1.5k
+-- a = 0.5                       3k           3.5k
+-- a = 0.25                      4.5k         5k
+-- a = 0.125                     7k           8k
+-- a = 0.0625                                 10k
+
+--   alpha             recovery samples   diff      log10  log diff
+--        1; 5         2                  ----      0.3    --------
+--      0.5; 7.3       5.3                3.3       0.72   0.42
+--     0.25; 12        9                  3.7       0.95   0.23
+--    0.125; 20        17                 8         1.23   0.27
+--   0.0625; 33        31                 14        1.49   0.26
+
+-- ref = 1.13 for 32k
+-- for 1000, log 10
+sim = let ref = 1.05 :: UFixed 2 10
           window = 7 :: Unsigned 5
-          alpha = 0.5 :: UFixed 0 4
+          alpha = 2.0 :: UFixed 1 6
           fLog = Clash.d6
-          fGain = Clash.d10
+          fGain = Clash.d6
           out_gain = Clash.simulate @System (uncurry (digiAgcMult (pure window) (pure ref) (pure alpha)). unbundle) simInput
       in map (zip [1..]) [
                            map (fromIntegral . (\(_,x,_)->x)) out_gain
@@ -82,6 +109,101 @@ careful about growing our wordlengths in the log domain.
 nSig = 16
 nWindow = 19
 -}
+
+-- Experimentally found recovery cycles for every tenth decimal step in alpha
+-- alphas = [0.1,0.2,...1.9]
+recoveryCycles :: [(Int, Int)]
+recoveryCycles = [(1,56),(2,40),(3,31),(4,26),(5,22),(6,19),(7,17),(8,15),(9,14),(10,13),(11,12),(12,11),(13,10),(14,10),(15,9),(16,8),(17,8),(18,7),(19,7)]
+
+getRecoveryCycles :: Double -> Int
+getRecoveryCycles = fromMaybe (error "No entry found for that alpha") . flip lookup recoveryCycles. round . (*10)
+
+newtype InGain = InGain Double deriving Show
+newtype InStepTime = InStepTime Int deriving Show
+
+instance Arbitrary InStepTime where
+  arbitrary = fmap InStepTime $ choose (1000,10000)
+
+instance Arbitrary InGain where
+  arbitrary = fmap (InGain . recip . fromIntegral) $ choose (1::Int,63)
+
+steppedInput :: InGain -> InGain -> InStepTime -> [(Signed 16,Signed 16)]
+steppedInput (InGain g1) (InGain g2) (InStepTime n) =
+  let a = map (\(i,q)->(multD i g1, multD q g1)) . take n $ sinInputComplex 1 0.01
+      b = map (\(i,q)->(multD i g2, multD q g2))           $ sinInputComplex 1 0.01
+  in a ++ b
+  where
+  multD s d = fromIntegral . round $ fromIntegral s * d
+
+splitInto n [] = []
+splitInto n xs = let (a,b) = splitAt n xs
+                 in a : splitInto n b
+
+isSteady :: Int -> Double -> Double -> [Double] -> Bool
+isSteady n ref percent = (<=n) . maximum . map length . L.filter (\a->False == a!!0) . L.group . map (\x->abs (x-ref)/ref < (percent/100))
+
+-- TODO how do we deal with quantisation issues? We don't get a good idea of
+-- logarithmic distance when we've clipped...
+
+simOutPower g1 g2 n =
+  let ref = 1.00 :: UFixed 2 10
+      alpha = 1.0 :: UFixed 1 6
+      window = 7
+      inputSig = L.take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
+      fLog = Clash.d6
+      fGain = Clash.d6
+      out_gain = L.take (10000 + rec_time*(2^window)) $ Clash.simulate @System (uncurry (digiAgcMult (pure window) (pure ref) (pure alpha)). unbundle) inputSig
+      out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain
+      rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
+      out_pow_block = map ((/(2^window)) . sum) $ splitInto (2^window) out_pow
+      expected_pow = 10**(4 * ufToDouble ref)
+  in (inputSig, out_gain, out_pow, out_pow_block, rec_time, expected_pow)
+
+prop_OutPower :: InGain -> InGain -> InStepTime -> Property
+prop_OutPower g1 g2 (InStepTime n) =
+  let (_, _, _, out_pow_block, rec_time, expected_pow) = simOutPower g1 g2 (InStepTime n)
+  in property . isSteady rec_time expected_pow 13 $ L.drop (ceiling $ (fromIntegral n) / 2**7) out_pow_block
+
+showTest g1 g2 n =
+    renderToFile "/tmp/clash/test.html" $ doctypehtml_ $ do
+    head_ $ do meta_ [charset_ "utf-8"]
+               plotlyCDN
+               reloadCDN
+               styleSheet
+    body_ $ do
+               toHtml $ plotly "time_iq_in" (traceTime simInputTrace)
+                          & layout . title ?~ "Time domain I/Q Input"
+               toHtml $ plotly "time_iq_out" (traceTime tData)
+                          & layout . title ?~ "Time domain I/Q Output"
+               toHtml $ plotly "constl_iq_out" (traceConstl tData)
+                          & layout . title ?~ "Constellation I/Q"
+                          & layout . width ?~ 600
+                          & layout . height ?~ 600
+               toHtml $ plotly "time_iq_ctrl" (traceTime ctrlData)
+                          & layout . title ?~ "Time domain Control"
+--               toHtml $ plotly "fft_mag" (traceFFT $ doFFT fs tData)
+--                          & layout . title ?~ "Freq domain"
+  where
+  (simInput, sim, out_pow, _, _, _) = simOutPower g1 g2 n
+  tData = map (zip [1..]) $ [map (\(_,x,_)->fromIntegral x) sim
+                            ,map (\(_,_,x)->fromIntegral x) sim
+                            ,map (\(x,_,_)->ufToDouble x)   sim
+                            ] :: [[(Double, Double)]]
+  ctrlData = [tData !! 2, tData !! 2]
+  simInputTrace = map (zip [(1::Double)..] . map (sfToDouble . sf Clash.d0))  [map fst simInput, map snd simInput]
+
+corr :: [(Double, Double)] -> Double
+corr = correlation . V.fromList
+
+prop_corrTest g1 g2 n =
+  let (_, outsig, _, _, _, _) = simOutPower g1 g2 n
+      insig = steppedInput (InGain 0.3125) (InGain 0.3125) (InStepTime 0)
+      inI  = map (fromIntegral . fst) insig
+      inQ  = map (fromIntegral . snd) insig
+      outI = map (fromIntegral . (\(_,i,_)->i)) outsig
+      outQ = map (fromIntegral . (\(_,_,q)->q)) outsig
+      correlation = corr $ zip inI outI
+  in property $ correlation > 0.9
 
 -- God holp us
 
