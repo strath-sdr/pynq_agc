@@ -168,8 +168,8 @@ digiAgcMult :: forall dom . (HiddenClockResetEnable dom)
             -> Signal dom (UFixed 1 6) -- ^ Alpha (book says this should be 0<=alpha<=2)
             -> Signal dom (Signed 16)
             -> Signal dom (Signed 16)
-            -> Signal dom (UFixed 7 7, Signed 16, Signed 16)
-digiAgcMult w r a i q = let g = digiAgc (SNat :: SNat 8) (SNat :: SNat 7) w r a i' q'
+            -> Signal dom (UFixed 9 5, Signed 16, Signed 16) -- TODO I changed gain from 7.7 to 9.5 to get better results when bumping up gains... re-check my tests.
+digiAgcMult w r a i q = let g = digiAgc (SNat :: SNat 8) (SNat :: SNat 5) w r a i' q'
                             g' = toSF <$> g
                             preMul x y = unSF (resizeF $ (sf d0 x) `mul` y :: SFixed 16 0)
                             i' = delay 0 $ liftA2 preMul i g'  :: Signal dom (Signed 16)
@@ -220,6 +220,8 @@ countToStable (x:y:zs) = if abs (x-y) / y < 0.005 -- Did we move by less than 0.
                          then 0
                          else 1 + countToStable (y:zs)
 
+createDomain vXilinxSystem{vName="XilDom", vResetPolarity=ActiveLow}
+
 -- Getting space state equations from that book and modifying them for our circuit
 {-# ANN topEntity
   (Synthesize
@@ -240,8 +242,8 @@ countToStable (x:y:zs) = if abs (x-y) / y < 0.005 -- Did we move by less than 0.
                    , PortName "out_q"
                    ]
     }) #-}
-topEntity clk rst en = exposeClockResetEnable @System gatedAgc clk rst (toEnable $ pure True) en
-  where gatedAgc en w r a i q = mux en (digiAgcMult w r a i q) (bundle (pure 1, i, q))
+topEntity clk rst en = exposeClockResetEnable @XilDom gatedAgc clk rst (toEnable $ pure True) en
+  where gatedAgc en w r a i q = mux (fmap bitToBool en) (digiAgcMult w r a i q) (bundle (pure 1, i, q))
 
 
 {-

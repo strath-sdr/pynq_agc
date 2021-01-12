@@ -1,6 +1,6 @@
-CLASH = clash
-BUILD_DIR = build/clash/AGC.hs
-VHDL = build/clash/vhdl/Main/agc/agc.vhd
+CLASH = clash -fconstraint-solver-iterations=20
+BUILD_DIR = build/clash/DigitalAGC.hs
+VHDL = build/clash/vhdl/Main/DigitalAgc/digitalAgc.vhd
 IP = build/xil/ip/component.xml
 
 all: ip
@@ -16,7 +16,7 @@ $(BUILD_DIR):
 	cp -r src/* build
 
 $(VHDL): $(BUILD_DIR)
-	cd build/clash; $(CLASH) -fclash-hdlsyn Vivado --vhdl AGC.hs;
+	cd build/clash; $(CLASH) -fclash-hdlsyn Vivado --vhdl DigitalAGC.hs;
 
 $(IP): $(VHDL)
 	cd build/xil; vivado -mode batch -source vivado.tcl
