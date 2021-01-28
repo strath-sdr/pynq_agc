@@ -16,19 +16,29 @@ entity agc_v1_0 is
 	);
 	port (
 		-- Users to add ports here
-    i : in std_logic_vector(15 downto 0);
-    q : in std_logic_vector(15 downto 0);
-		gain : out std_logic_vector(13 downto 0);
-		out_i : out std_logic_vector(15 downto 0);
-		out_q : out std_logic_vector(15 downto 0);
+    s_i_axis_tdata  : in std_logic_vector(15 downto 0);
+    s_i_axis_tvalid : in std_logic;
+    s_q_axis_tdata  : in std_logic_vector(15 downto 0);
+    s_q_axis_tvalid : in std_logic;
+    m_g_axis_tready : in std_logic;
+    m_i_axis_tready : in std_logic;
+    m_q_axis_tready : in std_logic;
+    s_i_axis_tready : out std_logic;
+    s_q_axis_tready : out std_logic;
+    m_g_axis_tdata  : out std_logic_vector(13 downto 0);
+    m_g_axis_tvalid : out std_logic;
+    m_i_axis_tdata  : out std_logic_vector(15 downto 0);
+    m_i_axis_tvalid : out std_logic;
+    m_q_axis_tdata  : out std_logic_vector(15 downto 0);
+    m_q_axis_tvalid : out std_logic;
 
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
 
 		-- Ports of Axi Slave Bus Interface S00_AXI
-		s00_axi_aclk	: in std_logic;
-		s00_axi_aresetn	: in std_logic;
+		clk	: in std_logic;
+		aresetn	: in std_logic;
 		s00_axi_awaddr	: in std_logic_vector(C_S00_AXI_ADDR_WIDTH-1 downto 0);
 		s00_axi_awprot	: in std_logic_vector(2 downto 0);
 		s00_axi_awvalid	: in std_logic;
@@ -60,8 +70,8 @@ architecture arch_imp of agc_v1_0 is
 		C_S_AXI_ADDR_WIDTH	: integer	:= 9
 		);
 		port (
-		S_AXI_ACLK	: in std_logic;
-		S_AXI_ARESETN	: in std_logic;
+		CLK	: in std_logic;
+		ARESETN	: in std_logic;
 		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
 		S_AXI_AWPROT	: in std_logic_vector(2 downto 0);
 		S_AXI_AWVALID	: in std_logic;
@@ -81,11 +91,21 @@ architecture arch_imp of agc_v1_0 is
 		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic;
-    i : in std_logic_vector(15 downto 0);
-    q : in std_logic_vector(15 downto 0);
-		gain : out std_logic_vector(13 downto 0);
-		out_i : out std_logic_vector(15 downto 0);
-		out_q : out std_logic_vector(15 downto 0)
+    s_i_axis_tdata  : in std_logic_vector(15 downto 0);
+    s_i_axis_tvalid : in std_logic;
+    s_q_axis_tdata  : in std_logic_vector(15 downto 0);
+    s_q_axis_tvalid : in std_logic;
+    m_g_axis_tready : in std_logic;
+    m_i_axis_tready : in std_logic;
+    m_q_axis_tready : in std_logic;
+    s_i_axis_tready : out std_logic;
+    s_q_axis_tready : out std_logic;
+    m_g_axis_tdata  : out std_logic_vector(13 downto 0);
+    m_g_axis_tvalid : out std_logic;
+    m_i_axis_tdata  : out std_logic_vector(15 downto 0);
+    m_i_axis_tvalid : out std_logic;
+    m_q_axis_tdata  : out std_logic_vector(15 downto 0);
+    m_q_axis_tvalid : out std_logic
 		);
 	end component agc_axi_wrapper;
 
@@ -98,8 +118,8 @@ agc_v1_0_S00_AXI_inst : agc_axi_wrapper
 		C_S_AXI_ADDR_WIDTH	=> C_S00_AXI_ADDR_WIDTH
 	)
 	port map (
-		S_AXI_ACLK	=> s00_axi_aclk,
-		S_AXI_ARESETN	=> s00_axi_aresetn,
+		CLK	=> clk,
+		ARESETN	=> aresetn,
 		S_AXI_AWADDR	=> s00_axi_awaddr,
 		S_AXI_AWPROT	=> s00_axi_awprot,
 		S_AXI_AWVALID	=> s00_axi_awvalid,
@@ -119,11 +139,21 @@ agc_v1_0_S00_AXI_inst : agc_axi_wrapper
 		S_AXI_RRESP	=> s00_axi_rresp,
 		S_AXI_RVALID	=> s00_axi_rvalid,
 		S_AXI_RREADY	=> s00_axi_rready,
-    i => i,
-    q => q,
-    gain => gain,
-    out_i => out_i,
-    out_q  => out_q
+    s_i_axis_tdata  => s_i_axis_tdata,
+    s_i_axis_tvalid => s_i_axis_tvalid,
+    s_q_axis_tdata  => s_q_axis_tdata,
+    s_q_axis_tvalid => s_q_axis_tvalid,
+    m_g_axis_tready => m_g_axis_tready,
+    m_i_axis_tready => m_i_axis_tready,
+    m_q_axis_tready => m_q_axis_tready,
+    s_i_axis_tready => s_i_axis_tready,
+    s_q_axis_tready => s_q_axis_tready,
+    m_g_axis_tdata  => m_g_axis_tdata,
+    m_g_axis_tvalid => m_g_axis_tvalid,
+    m_i_axis_tdata  => m_i_axis_tdata,
+    m_i_axis_tvalid => m_i_axis_tvalid,
+    m_q_axis_tdata  => m_q_axis_tdata,
+    m_q_axis_tvalid => m_q_axis_tvalid
 	);
 
 	-- Add user logic here

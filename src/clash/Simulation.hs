@@ -65,17 +65,17 @@ simInput = let iqs = map (\(i,q)->(shiftR i 1, shiftR q 1)) $ sinInputComplex 1 
 
 -- ref = 1.13 for 32k
 -- for 1000, log 10
-sim = let ref = 1.05 :: UFixed 2 10
-          window = 7 :: Unsigned 5
-          alpha = 2.0 :: UFixed 1 6
-          fLog = Clash.d6
-          fGain = Clash.d6
-          out_gain = Clash.simulate @System (uncurry (digiAgcMult (pure window) (pure ref) (pure alpha)). unbundle) simInput
-      in map (zip [1..]) [
-                           map (fromIntegral . (\(_,x,_)->x)) out_gain
-                         , map (fromIntegral . (\(_,_,x)->x)) out_gain
-                         , map (ufToDouble   . (\(x,_,_)->x)) out_gain
-                         ]
+--sim = let ref = 1.05 :: UFixed 2 10
+--          window = 7 :: Unsigned 5
+--          alpha = 2.0 :: UFixed 1 6
+--          fLog = Clash.d6
+--          fGain = Clash.d6
+--          out_gain = Clash.simulate @System (uncurry (digiAgcMult (pure window) (pure ref) (pure alpha)). unbundle) simInput
+--      in map (zip [1..]) [
+--                           map (fromIntegral . (\(_,x,_)->x)) out_gain
+--                         , map (fromIntegral . (\(_,_,x)->x)) out_gain
+--                         , map (ufToDouble   . (\(x,_,_)->x)) out_gain
+--                         ]
 
 {-
 Just thinking about sensible wordlengths for RFSoC...
@@ -146,15 +146,17 @@ isSteady n ref percent = (<=n) . maximum . map length . L.filter (\a->False == a
 -- logarithmic distance when we've clipped...
 
 simOutPower g1 g2 n =
-  let ref = 1.00 :: UFixed 2 10
+  let ref = 4.00 :: UFixed 4 8
       alpha = 1.0 :: UFixed 1 6
-      window = 7
+      window = 7 :: Unsigned 5
       inputSig = L.take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
-      fLog = Clash.d6
-      fGain = Clash.d6
-      out_gain = L.take (10000 + rec_time*(2^window)) $ Clash.simulate @System (uncurry (digiAgcMult (pure window) (pure ref) (pure alpha)). unbundle) inputSig
-      out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain
+      fLog = Clash.d8
+      fGain = Clash.d7
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
+      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Clash.Signal System ((UFixed 7 7, (Signed 16, Signed 16)), Bool, Bool)
+      outs = L.drop 1 . L.take (10000 + rec_time*(2^window)) $ Clash.simulate @System ip inputSig
+      out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
+      out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain
       out_pow_block = map ((/(2^window)) . sum) $ splitInto (2^window) out_pow
       expected_pow = 10**(4 * ufToDouble ref)
   in (inputSig, out_gain, out_pow, out_pow_block, rec_time, expected_pow)
@@ -255,30 +257,6 @@ styleSheet :: Monad m => HtmlT m ()
 styleSheet = style_ [type_ "text/css" ] $
              toHtml (".svg-container {margin: 0 auto !important;}"::String)
 
-main n =
-    renderToFile "/tmp/clash/test.html" $ doctypehtml_ $ do
-    head_ $ do meta_ [charset_ "utf-8"]
-               plotlyCDN
-               reloadCDN
-               styleSheet
-    body_ $ do
-               toHtml $ plotly "time_iq_in" (traceTime simInputTrace)
-                          & layout . title ?~ "Time domain I/Q Input"
-               toHtml $ plotly "time_iq_out" (traceTime tData)
-                          & layout . title ?~ "Time domain I/Q Output"
-               toHtml $ plotly "constl_iq_out" (traceConstl tData)
-                          & layout . title ?~ "Constellation I/Q"
-                          & layout . width ?~ 600
-                          & layout . height ?~ 600
-               toHtml $ plotly "time_iq_ctrl" (traceTime ctrlData)
-                          & layout . title ?~ "Time domain Control"
---               toHtml $ plotly "fft_mag" (traceFFT $ doFFT fs tData)
---                          & layout . title ?~ "Freq domain"
-  where
-  tData = map (L.take n) sim :: [[(Double, Double)]]
-  ctrlData = [tData !! 2, tData !! 2]
-  simInputTrace = map (L.take n . zip [(1::Double)..] . map (sfToDouble . sf Clash.d0))  [map fst simInput, map snd simInput]
-
 traceTime a =  [trace "I" $ a !! 0
                ,trace "Q" $ a !! 1]
   where trace label points = linePlot points
@@ -294,3 +272,15 @@ startServer = callCommand "mkdir -p /tmp/clash; cd /tmp/clash/; python -m http.s
 
 return []
 runTests = $quickCheckAll
+
+{- TODO
+
+Include bin files in IP make script
+
+Try find what resolution we need to increase in order to better recover very very low signals.
+
+Get 2020.1 vivado(?) and licence
+
+Look at rfsoc sam and see if I can replace the SSR firs with magic
+
+-}

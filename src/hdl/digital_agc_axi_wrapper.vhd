@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.all;
-use work.agc_types.all;
+use work.digitalagc_types.all;
 
 entity agc_axi_wrapper is
 	generic (
@@ -18,19 +18,29 @@ entity agc_axi_wrapper is
 	);
 	port (
 		-- Users to add ports here
-    i : in std_logic_vector(15 downto 0);
-    q : in std_logic_vector(15 downto 0);
-		gain : out std_logic_vector(13 downto 0);
-		out_i : out std_logic_vector(15 downto 0);
-		out_q : out std_logic_vector(15 downto 0);
+    s_i_axis_tdata  : in std_logic_vector(15 downto 0);
+    s_i_axis_tvalid : in std_logic;
+    s_q_axis_tdata  : in std_logic_vector(15 downto 0);
+    s_q_axis_tvalid : in std_logic;
+    m_g_axis_tready : in std_logic;
+    m_i_axis_tready : in std_logic;
+    m_q_axis_tready : in std_logic;
+    s_i_axis_tready : out std_logic;
+    s_q_axis_tready : out std_logic;
+    m_g_axis_tdata  : out std_logic_vector(13 downto 0);
+    m_g_axis_tvalid : out std_logic;
+    m_i_axis_tdata  : out std_logic_vector(15 downto 0);
+    m_i_axis_tvalid : out std_logic;
+    m_q_axis_tdata  : out std_logic_vector(15 downto 0);
+    m_q_axis_tvalid : out std_logic;
 
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
 		-- Global Clock Signal
-		S_AXI_ACLK	: in std_logic;
+		CLK	: in std_logic;
 		-- Global Reset Signal. This Signal is Active LOW
-		S_AXI_ARESETN	: in std_logic;
+		ARESETN	: in std_logic;
 		-- Write address (issued by master, acceped by Slave)
 		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
 		-- Write channel Protection type. This signal indicates the
@@ -129,24 +139,31 @@ architecture arch_imp of agc_axi_wrapper is
 	signal byte_index	: integer;
 	signal aw_en	: std_logic;
 
-  signal gain_sig : std_logic_vector(13 downto 0);
-  signal out_i_sig : std_logic_vector(15 downto 0);
-  signal out_q_sig : std_logic_vector(15 downto 0);
   component digitalAgc is
-      port(-- clock
-          clk       : in std_logic;
-          -- reset
-          aresetn   : in std_logic;
-          en        : in std_logic;
-          window    : in unsigned(4 downto 0);
-          ref       : in unsigned(11 downto 0);
-          alpha     : in unsigned(6 downto 0);
-          i         : in signed(15 downto 0);
-          q         : in signed(15 downto 0);
-          agc_gain  : out unsigned(13 downto 0);
-          agc_out_i : out signed(15 downto 0);
-          agc_out_q : out signed(15 downto 0));
-    end component;
+    port(-- clock
+         clk             : in std_logic;
+         -- reset
+         aresetn         : in std_logic;
+         en              : in std_logic;
+         window          : in unsigned(4 downto 0);
+         ref             : in unsigned(11 downto 0);
+         alpha           : in unsigned(6 downto 0);
+         s_i_axis_tdata  : in signed(15 downto 0);
+         s_i_axis_tvalid : in std_logic;
+         s_q_axis_tdata  : in signed(15 downto 0);
+         s_q_axis_tvalid : in std_logic;
+         m_g_axis_tready : in std_logic;
+         m_i_axis_tready : in std_logic;
+         m_q_axis_tready : in std_logic;
+         s_i_axis_tready : out std_logic;
+         s_q_axis_tready : out std_logic;
+         m_g_axis_tdata  : out unsigned(13 downto 0);
+         m_g_axis_tvalid : out std_logic;
+         m_i_axis_tdata  : out signed(15 downto 0);
+         m_i_axis_tvalid : out std_logic;
+         m_q_axis_tdata  : out signed(15 downto 0);
+         m_q_axis_tvalid : out std_logic);
+  end component;
 
 begin
 	-- I/O Connections assignments
@@ -160,14 +177,14 @@ begin
 	S_AXI_RRESP	<= axi_rresp;
 	S_AXI_RVALID	<= axi_rvalid;
 	-- Implement axi_awready generation
-	-- axi_awready is asserted for one S_AXI_ACLK clock cycle when both
+	-- axi_awready is asserted for one CLK clock cycle when both
 	-- S_AXI_AWVALID and S_AXI_WVALID are asserted. axi_awready is
 	-- de-asserted when reset is low.
 
-	process (S_AXI_ACLK)
+	process (CLK)
 	begin
-	  if rising_edge(S_AXI_ACLK) then
-	    if S_AXI_ARESETN = '0' then
+	  if rising_edge(CLK) then
+	    if ARESETN = '0' then
 	      axi_awready <= '0';
 	      aw_en <= '1';
 	    else
@@ -191,10 +208,10 @@ begin
 	-- This process is used to latch the address when both
 	-- S_AXI_AWVALID and S_AXI_WVALID are valid.
 
-	process (S_AXI_ACLK)
+	process (CLK)
 	begin
-	  if rising_edge(S_AXI_ACLK) then
-	    if S_AXI_ARESETN = '0' then
+	  if rising_edge(CLK) then
+	    if ARESETN = '0' then
 	      axi_awaddr <= (others => '0');
 	    else
 	      if (axi_awready = '0' and S_AXI_AWVALID = '1' and S_AXI_WVALID = '1' and aw_en = '1') then
@@ -206,14 +223,14 @@ begin
 	end process;
 
 	-- Implement axi_wready generation
-	-- axi_wready is asserted for one S_AXI_ACLK clock cycle when both
+	-- axi_wready is asserted for one CLK clock cycle when both
 	-- S_AXI_AWVALID and S_AXI_WVALID are asserted. axi_wready is
 	-- de-asserted when reset is low.
 
-	process (S_AXI_ACLK)
+	process (CLK)
 	begin
-	  if rising_edge(S_AXI_ACLK) then
-	    if S_AXI_ARESETN = '0' then
+	  if rising_edge(CLK) then
+	    if ARESETN = '0' then
 	      axi_wready <= '0';
 	    else
 	      if (axi_wready = '0' and S_AXI_WVALID = '1' and S_AXI_AWVALID = '1' and aw_en = '1') then
@@ -238,11 +255,11 @@ begin
 	-- and the slave is ready to accept the write address and write data.
 	slv_reg_wren <= axi_wready and S_AXI_WVALID and axi_awready and S_AXI_AWVALID ;
 
-	process (S_AXI_ACLK)
+	process (CLK)
 	variable loc_addr :std_logic_vector(OPT_MEM_ADDR_BITS downto 0);
 	begin
-	  if rising_edge(S_AXI_ACLK) then
-	    if S_AXI_ARESETN = '0' then
+	  if rising_edge(CLK) then
+	    if ARESETN = '0' then
 	      slv_reg0 <= (others => '0');
 	      slv_reg1 <= (others => '0');
 	      slv_reg2 <= (others => '0');
@@ -330,10 +347,10 @@ begin
 	-- This marks the acceptance of address and indicates the status of
 	-- write transaction.
 
-	process (S_AXI_ACLK)
+	process (CLK)
 	begin
-	  if rising_edge(S_AXI_ACLK) then
-	    if S_AXI_ARESETN = '0' then
+	  if rising_edge(CLK) then
+	    if ARESETN = '0' then
 	      axi_bvalid  <= '0';
 	      axi_bresp   <= "00"; --need to work more on the responses
 	    else
@@ -348,16 +365,16 @@ begin
 	end process;
 
 	-- Implement axi_arready generation
-	-- axi_arready is asserted for one S_AXI_ACLK clock cycle when
+	-- axi_arready is asserted for one CLK clock cycle when
 	-- S_AXI_ARVALID is asserted. axi_awready is
 	-- de-asserted when reset (active low) is asserted.
 	-- The read address is also latched when S_AXI_ARVALID is
 	-- asserted. axi_araddr is reset to zero on reset assertion.
 
-	process (S_AXI_ACLK)
+	process (CLK)
 	begin
-	  if rising_edge(S_AXI_ACLK) then
-	    if S_AXI_ARESETN = '0' then
+	  if rising_edge(CLK) then
+	    if ARESETN = '0' then
 	      axi_arready <= '0';
 	      axi_araddr  <= (others => '1');
 	    else
@@ -374,17 +391,17 @@ begin
 	end process;
 
 	-- Implement axi_arvalid generation
-	-- axi_rvalid is asserted for one S_AXI_ACLK clock cycle when both
+	-- axi_rvalid is asserted for one CLK clock cycle when both
 	-- S_AXI_ARVALID and axi_arready are asserted. The slave registers
 	-- data are available on the axi_rdata bus at this instance. The
 	-- assertion of axi_rvalid marks the validity of read data on the
 	-- bus and axi_rresp indicates the status of read transaction.axi_rvalid
 	-- is deasserted on reset (active low). axi_rresp and axi_rdata are
 	-- cleared to zero on reset (active low).
-	process (S_AXI_ACLK)
+	process (CLK)
 	begin
-	  if rising_edge(S_AXI_ACLK) then
-	    if S_AXI_ARESETN = '0' then
+	  if rising_edge(CLK) then
+	    if ARESETN = '0' then
 	      axi_rvalid <= '0';
 	      axi_rresp  <= "00";
 	    else
@@ -405,7 +422,7 @@ begin
 	-- and the slave is ready to accept the read address.
 	slv_reg_rden <= axi_arready and S_AXI_ARVALID and (not axi_rvalid) ;
 
-	process (slv_reg0, slv_reg1, slv_reg2, slv_reg3, slv_reg4, slv_reg5, slv_reg6, axi_araddr, S_AXI_ARESETN, slv_reg_rden)
+	process (slv_reg0, slv_reg1, slv_reg2, slv_reg3, slv_reg4, slv_reg5, slv_reg6, axi_araddr, ARESETN, slv_reg_rden)
 	variable loc_addr :std_logic_vector(OPT_MEM_ADDR_BITS downto 0);
 	begin
 	    -- Address decoding for reading registers
@@ -429,10 +446,10 @@ begin
 	end process;
 
 	-- Output register or memory read data
-	process( S_AXI_ACLK ) is
+	process( CLK ) is
 	begin
-	  if (rising_edge (S_AXI_ACLK)) then
-	    if ( S_AXI_ARESETN = '0' ) then
+	  if (rising_edge (CLK)) then
+	    if ( ARESETN = '0' ) then
 	      axi_rdata  <= (others => '0');
 	    else
 	      if (slv_reg_rden = '1') then
@@ -449,8 +466,8 @@ begin
 
 	-- Add user logic here
     IP_CORE: digitalAgc port map (
-        clk => S_AXI_ACLK,
-        aresetn => S_AXI_ARESETN,
+        clk => CLK,
+        aresetn => ARESETN,
         en  => slv_reg0(0),
         -- AXI signals
         window => unsigned(slv_reg1(4 downto 0)),
@@ -458,16 +475,23 @@ begin
         alpha  => unsigned(slv_reg3(6 downto 0)),
 
         -- Non-axi signals
-        i => signed(i),
-        q => signed(q),
-        std_logic_vector(agc_gain) => gain_sig,
-        std_logic_vector(agc_out_i) => out_i_sig,
-        std_logic_vector(agc_out_q) => out_q_sig
-        );
+        s_i_axis_tdata  => signed(s_i_axis_tdata),
+        s_i_axis_tvalid => s_i_axis_tvalid ,
+        s_q_axis_tdata  => signed(s_q_axis_tdata),
+        s_q_axis_tvalid => s_q_axis_tvalid,
+        m_g_axis_tready => m_g_axis_tready,
+        m_i_axis_tready => m_i_axis_tready,
+        m_q_axis_tready => m_q_axis_tready,
 
-  gain <= gain_sig;
-  out_i <= out_i_sig;
-  out_q <= out_q_sig;
+        s_i_axis_tready => s_i_axis_tready,
+        s_q_axis_tready => s_q_axis_tready,
+        std_logic_vector(m_g_axis_tdata) => m_g_axis_tdata,
+        m_g_axis_tvalid => m_g_axis_tvalid,
+        std_logic_vector(m_i_axis_tdata)  => m_i_axis_tdata,
+        m_i_axis_tvalid => m_i_axis_tvalid,
+        std_logic_vector(m_q_axis_tdata) => m_q_axis_tdata,
+        m_q_axis_tvalid => m_q_axis_tvalid
+        );
 	-- User logic ends
 
 end arch_imp;
