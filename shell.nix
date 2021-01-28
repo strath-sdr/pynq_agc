@@ -4,20 +4,9 @@ with nixpkgs;
 
 mkShell {
   name = "clash-compiler-shell";
-  shellHook = "source /tools/Xilinx/Vivado/2019.1/settings64.sh";
+  shellHook = "";
   buildInputs = [
-    # My own packages...
-    #yosys
-    #graphviz
 
-    #(python36.buildEnv.override {
-    #  extraLibs = with python36Packages; [
-    #    # Add pythonPackages without the prefix
-	#xdot
-    #  ];
-    #})
-
-    # For quick clash experimentation
     (pkgs.haskellPackages.ghcWithPackages (p: with p; [
       clash-ghc
       ghc-typelits-extra
