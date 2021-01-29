@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity agc_v1_0 is
+entity analogueAgc_v1_0 is
 	generic (
 		-- Users to add parameters here
 
@@ -47,12 +47,12 @@ entity agc_v1_0 is
 		s00_axi_rvalid	: out std_logic;
 		s00_axi_rready	: in std_logic
 	);
-end agc_v1_0;
+end analogueAgc_v1_0;
 
-architecture arch_imp of agc_v1_0 is
+architecture arch_imp of analogueAgc_v1_0 is
 
 	-- component declaration
-	component agc_axi_wrapper is
+	component analogueAgc_axi_wrapper is
 		generic (
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 9
@@ -83,12 +83,12 @@ architecture arch_imp of agc_v1_0 is
     thres_high : in std_logic;
     thres_low : in std_logic
 		);
-	end component agc_axi_wrapper;
+	end component analogueAgc_axi_wrapper;
 
 begin
 
 -- Instantiation of Axi Bus Interface S00_AXI
-agc_v1_0_S00_AXI_inst : agc_axi_wrapper
+analogueAgc_v1_0_S00_AXI_inst : analogueAgc_axi_wrapper
 	generic map (
 		C_S_AXI_DATA_WIDTH	=> C_S00_AXI_DATA_WIDTH,
 		C_S_AXI_ADDR_WIDTH	=> C_S00_AXI_ADDR_WIDTH

@@ -2,9 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.all;
-use work.agc_types.all;
+use work.analogueagc_types.all;
 
-entity agc_axi_wrapper is
+entity analogueAgc_axi_wrapper is
 	generic (
 		-- Users to add parameters here
 
@@ -86,9 +86,9 @@ entity agc_axi_wrapper is
     		-- accept the read data and response information.
 		S_AXI_RREADY	: in std_logic
 	);
-end agc_axi_wrapper;
+end analogueAgc_axi_wrapper;
 
-architecture arch_imp of agc_axi_wrapper is
+architecture arch_imp of analogueAgc_axi_wrapper is
 
 	-- AXI4LITE signals
 	signal axi_awaddr	: std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
@@ -127,11 +127,11 @@ architecture arch_imp of agc_axi_wrapper is
 	signal aw_en	: std_logic;
 
   signal gain_sig : std_logic_vector(5 downto 0);
-	component agc is
+	component analogueAgc is
       port(-- clock
-        clk         : in agc_types.clk_xildom;
+        clk         : in analogueagc_types.clk_xildom;
         -- reset
-        aresetn     : in agc_types.rst_xildom;
+        aresetn     : in analogueagc_types.rst_xildom;
         en          : in std_logic;
         atk_step    : in unsigned(17 downto 0);
         atk_n       : in unsigned(31 downto 0);
@@ -446,7 +446,7 @@ begin
 
 
 	-- Add user logic here
-    IP_CORE: agc port map (
+    IP_CORE: analogueAgc port map (
         clk => S_AXI_ACLK,
         aresetn => S_AXI_ARESETN,
         en  => slv_reg5(0),

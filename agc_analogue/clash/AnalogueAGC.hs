@@ -1,3 +1,5 @@
+module AnalogueAGC where
+
 import Clash.Prelude
 
 data GainState = GLow | GHigh | GOk
@@ -92,7 +94,7 @@ topLevel clk rst en atkStep atkN decStep decN maxG thU thL =
 
 {-# ANN topLevel
   (Synthesize
-    { t_name   = "agc"
+    { t_name   = "analogueAgc"
     , t_inputs = [ PortName "clk"
                  , PortName "aresetn"
                  , PortName "en"
