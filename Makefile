@@ -1,34 +1,13 @@
-CLASH = clash -fconstraint-solver-iterations=20
-BUILD_DIR = build/clash/DigitalAGC.hs
-VHDL = build/clash/vhdl/Main/DigitalAgc/digitalAgc.vhd
-IP = build/xil/ip/component.xml
+IP_AAGC = agc_analogue/ip/component.xml
+IP_DAGC = agc_digital/ip/component.xml
 
-all: ip
+all: $(IP_AAGC) $(IP_DAGC)
 
-vhdl: $(VHDL)
+$(IP_AAGC):
+	make -C agc_analogue
 
-ip: $(IP)
-
-build_dir: $(BUILD_DIR)
-
-$(BUILD_DIR):
-	mkdir build
-	cp -r src/* build
-
-$(VHDL): $(BUILD_DIR)
-	cd build/clash; $(CLASH) -fclash-hdlsyn Vivado --vhdl DigitalAGC.hs;
-
-$(IP): $(VHDL)
-	cd build/xil; vivado -mode batch -source vivado.tcl
-
-# vivado_loopback: verilog
-# 	cd build/xil; vivado -mode tcl -source prj_loopback.tcl
-# 
-# vivado_raw: $(VERILOG)
-# 		cd build/xil; vivado -mode batch -source prj_raw.tcl
-# 
-# yosys: verilog
-# 	cd  build/clash/verilog/Top/fir_rsg; yosys -s ../../../../yosys/view_synth.yosys
+$(IP_DAGC):
+	make -C agc_digital
 
 clean:
-	rm -r build
+	make -C agc_analogue clean; make -C agc_digital clean
