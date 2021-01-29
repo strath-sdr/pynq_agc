@@ -107,7 +107,6 @@ dfLogErr ref alpha = gatedToDF (\en x -> liftA3 f ref alpha x)
                             dif  = toSF ref - logX
                             err  = (toSF $ resizeF alpha) * dif
                         in err
--- ^ Verify my use of gatedToDF here (just need to lift a pure-ish function on Signals to a DF)
 
 {- Wee accumulator -}
 
@@ -215,7 +214,7 @@ topEntity ::
   -> Reset XilDom
   -> Signal XilDom Bit
   -> Signal XilDom (Unsigned 5)
-  -> Signal XilDom (UFixed 3 8)
+  -> Signal XilDom (UFixed 3 12)
   -> Signal XilDom (UFixed 1 6)
   -> Signal XilDom (Signed 16)
   -> Signal XilDom Bit
@@ -236,3 +235,6 @@ topEntity clk rst en window ref alpha i inIV q inQV outGR outIR outQR =
                                    (df $ lockStep `seqDF` dfAgc window ref alpha (bitToBool <$> en) `seqDF` stepLock `seqDF` secondDF stepLock)
                                 clk rst (toEnable $ pure True)
   in bundle (boolToBit <$> inIR, boolToBit <$> inQR, g, boolToBit <$> outGV, i', boolToBit <$> outIV, q', boolToBit <$> outQV)
+
+-- TODO Update wordlengths in wrapper, including padding Gain to nearest byte
+-- TODO Make wrapper project with loopback

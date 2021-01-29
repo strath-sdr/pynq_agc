@@ -144,11 +144,10 @@ isSteady n ref percent = (<=n) . maximum . map length . filter (\a->False == a!!
 
 -- TODO how do we deal with quantisation issues? We don't get a good idea of
 -- logarithmic distance when we've clipped... should I be using our multiplied input wordlength instead of 16? Yeah, probably.
--- TODO are my log luts the same now?
 
 simOutPower g1 g2 n =
-  let ref = 4.0 :: UFixed 3 8
-      alpha = 0.1 :: UFixed 1 6
+  let ref = 4.0 :: UFixed 3 12
+      alpha = 1.0 :: UFixed 1 6
       window = 7 :: Unsigned 5
       inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
       fLog = SNat :: SNat 8
@@ -159,13 +158,13 @@ simOutPower g1 g2 n =
       out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
       out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain
       out_pow_block = map ((/(2^window)) . sum) $ splitInto (2^window) out_pow
-      expected_pow = 10**(4 * ufToDouble ref)
+      expected_pow = 10**(ufToDouble ref)
   in (inputSig, out_gain, out_pow, out_pow_block, rec_time, expected_pow)
 
 prop_OutPower :: InGain -> InGain -> InStepTime -> Property
 prop_OutPower g1 g2 (InStepTime n) =
   let (_, _, _, out_pow_block, rec_time, expected_pow) = simOutPower g1 g2 (InStepTime n)
-  in property . isSteady rec_time expected_pow 13 $ drop (ceiling $ (fromIntegral n) / 2**7) out_pow_block
+  in property . isSteady rec_time expected_pow 1 $ drop (ceiling $ (fromIntegral n) / 2**7) out_pow_block
 
 showTest g1 g2 n =
     renderToFile "/tmp/clash_sim.html" $ doctypehtml_ $ do
