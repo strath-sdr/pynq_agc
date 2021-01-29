@@ -56,8 +56,8 @@ writeLutLogFile m = do
 -- Log 10
 
 lutLog10I
-  :: forall n m . (KnownNat n, KnownNat m, 1 <= n)
-     => Unsigned n -> Fixed Unsigned (CLog 2 n) m
+  :: forall n m . (KnownNat n, KnownNat m, 1 <= n, 1<=CLog 10 (2^n))
+     => Unsigned n -> Fixed Unsigned (CLog 2 (CLog 10 (2^n))) m
 lutLog10I = resizeUF' . mul coef . lutLog2 (SNat :: SNat m)  -- truncation with resizef a source of error
   where coef :: UFixed 0 m
         coef = resizeUF' ( $$(fLit . recip $ logBase 2 10) :: UFixed 0 128 )
@@ -65,8 +65,8 @@ lutLog10I = resizeUF' . mul coef . lutLog2 (SNat :: SNat m)  -- truncation with 
         -- to give a constant width to keep fLit's TH magic happy.
 
 lutLog10
-  :: forall n m . (KnownNat n, KnownNat m, 1 <= n)
-     => SNat m -> Unsigned n -> Fixed Unsigned (CLog 2 n) m
+  :: forall n m . (KnownNat n, KnownNat m, 1 <= n, 1<=CLog 10 (2^n))
+     => SNat m -> Unsigned n -> Fixed Unsigned (CLog 2 (CLog 10 (2^n))) m
 lutLog10 _ = lutLog10I
 
 {-

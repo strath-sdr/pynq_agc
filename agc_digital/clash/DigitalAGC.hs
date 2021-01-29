@@ -27,30 +27,51 @@ toUF = uf (SNat :: SNat m) . toUnsigned . unSF
 shiftSF :: (KnownNat n, KnownNat i, KnownNat f, n <= i) => SNat n -> SFixed i f -> SFixed (i-n) (f+n)
 shiftSF n x = resizeF $ shiftR x (snatToNum n)
 
-{- Basic AGC building blocks -}
+{- Power detector with root of squares approximation -}
 
-mul15by16 :: forall rep n . (KnownNat n, Resize rep, Bits (rep (4+n)), Num (rep (4+n)))
+{-
+
+Looking at power approximations again.
+
+https://dspguru.com/dsp/tricks/magnitude-estimator/
+
+what a great site. Let's try the 61/64 and 13/32 approximation.
+For 61 and 13, let's use spiral https://dspguru.com/dsp/tricks/magnitude-estimator/
+
+61/64, 13/32 looks like a good fit.
+-}
+
+mul61by64 :: forall rep n .
+             ( KnownNat n, Resize rep
+             , Bits (rep (6+n)), Num (rep (6+n)))
              => rep n -> rep n
-mul15by16 x =
-  let x16 = shiftL (resize x :: rep (n+4)) 4
-      x15 = x16 - signExtend x
-      x'  = resize $ shiftR x15 4
-  in x'
+mul61by64 x =
+  let x'  = resize x :: rep (6+n)
+      x4  = shiftL x' 2
+      x64 = shiftL x' 6
+      x61 = x64 - x4 + x'
+  in resize $ shiftR x61 6
 
--- Wordlength grows by one but we switch to unsigned and gain one extra +ve bit
+mul13by32 :: forall rep n .
+             ( KnownNat n, Resize rep
+             , Bits (rep (4+n)), Num (rep (4+n)))
+             => rep n -> rep n
+mul13by32 x =
+  let x' = resize x :: rep (4+n)
+      x4 = shiftL x' 2
+      x8 = shiftL x' 3
+      x13 = x8 + x4 + x'
+  in resize $ shiftR x13 5
+
 powerDetector :: KnownNat n => Signed n -> Signed n -> Unsigned n
-powerDetector i q = fromIntegral . mul15by16 $ (max i' q') `add` shiftR (abs $ min i' q') 1
+powerDetector i q = fromIntegral . mul61by64 $ (max i' q') `add` mul13by32 (abs $ min i' q')
   where i' = abs i
         q' = abs q
 
-intgDump
-  :: (HiddenClockResetEnable dom, Num window, Eq window, Num a, NFDataX window, NFDataX a)
-  => window -> Signal dom a -> Signal dom (Maybe a)
-intgDump window = mealy f (window, 0)
-  where f (0,acc) x = ((window, 0    ), Just acc)
-        f (n,acc) x = ((n-1   , acc+x), Nothing )
+dfPowDetect = pureDF (uncurry powerDetector)
 
--- A new I&D circuit that only supports powers of two windows, but does normalisation of the output via shifts.
+{- Integrate and dump -}
+
 intgDumpPow2
   :: forall dom window n . (HiddenClockResetEnable dom, KnownNat window, KnownNat n)
   => Signal dom (Unsigned window) -> Signal dom Bool -> Signal dom (Unsigned n) -> Signal dom (Maybe (Unsigned n))
@@ -63,34 +84,33 @@ intgDumpPow2 window en x = mealy f initState (bundle (en, x, window))
                                        , Just . resize $ shiftR acc (fromIntegral (boundedSub window 0)) -- output
                                        )
         f (n, acc) (True, x, window) = ( ( n-1                                                           -- window counter
-                                         , acc + (resize x))                                                 -- accumulator
+                                         , acc + (resize x))                                             -- accumulator
                                        , Nothing                                                         -- output
                                        )
 
-{- DataFlow / AXI-Stream wrappers -}
-
-dfPowDetect :: KnownNat n
-            => DataFlow dom Bool Bool (Signed n, Signed n) (Unsigned n)
-dfPowDetect = pureDF (uncurry powerDetector)
-
-dfIntgDump :: (HiddenClockResetEnable dom, KnownNat window, KnownNat n)
-           => Signal dom (Unsigned window)
-           -> DataFlow dom Bool Bool (Unsigned n) (Unsigned n)
 dfIntgDump window = gatedMaybeToDF (intgDumpPow2 window)
+
+{- Calculating log error -}
+type BitsLog10 n = CLog 2 (CLog 10 (2^n))
+type NonZeroLog10 n = (1 <= CLog 10 (2^n))
+type BitsExp10 n = CLog 2 (10 ^ (2 ^ n))
 
 dfLogErr :: forall dom shift power fRef iAlpha fAlpha
          .  ( HiddenClockResetEnable dom, KnownNat shift, KnownNat power, KnownNat fRef
             , KnownNat iAlpha, KnownNat fAlpha
-            , shift <= CLog 2 power
+            , shift <= BitsLog10 power
+            , NonZeroLog10 power
             , 1 <= power)
-         => SNat shift -> Signal dom (UFixed (CLog 2 power) fRef) -> Signal dom (UFixed iAlpha fAlpha)
-         -> DataFlow dom Bool Bool (Unsigned power) (SFixed (CLog 2 power - shift + 1) (fRef + shift))
+         => SNat shift -> Signal dom (UFixed (BitsLog10 power) fRef) -> Signal dom (UFixed iAlpha fAlpha)
+         -> DataFlow dom Bool Bool (Unsigned power) (SFixed (BitsLog10 power - shift + 1) (fRef + shift))
 dfLogErr shift ref alpha = gatedToDF (\en x -> liftA3 f ref alpha x)
   where f ref alpha x = let logX = toSF $ lutLog10 (SNat :: SNat fRef) x
                             dif  = toSF ref - logX
                             err  = (toSF $ resizeF alpha) * (shiftSF shift dif)
                         in err
 -- ^ Verify my use of gatedToDF here (just need to lift a pure-ish function on Signals to a DF)
+
+{- Wee accumulator -}
 
 dfAccum :: (HiddenClockResetEnable dom, KnownNat i, KnownNat f)
         => DataFlow dom Bool Bool (SFixed (i+1) f) (UFixed i f)
@@ -99,11 +119,13 @@ dfAccum = gatedVToDF f
                        x  = regEn 0 en x'
                    in (pure True, fmap toUF x)
 
+{- Antilog / exponential conversion -}
+
 dfAntilog :: forall dom i f f'
           .  ( HiddenClockResetEnable dom, KnownNat i, KnownNat f, KnownNat f'
              , 1<= i
-             , f' <= CLog 2 (10 ^ (2 ^ i)))
-          => DataFlow dom Bool Bool (UFixed i f) (UFixed (CLog 2 (10^(2^i)) - f') f')
+             , f' <= BitsExp10 i )
+          => DataFlow dom Bool Bool (UFixed i f) (UFixed (BitsExp10 i - f') f')
 dfAntilog = pureDF (uf (SNat :: SNat f') . lutAntilog10)
 
 {- Constructing the AGC loop -}
@@ -112,15 +134,15 @@ dfForward
   :: ( HiddenClockResetEnable dom
      , KnownNat sig, KnownNat fRef, KnownNat window
      , KnownNat iAlpha, KnownNat fAlpha, KnownNat fGain
-     , 1  <= (CLog 2 sig - 2)
+     , 1  <= (BitsLog10 sig - 2)
      , 1  <= sig
-     , 2  <= CLog 2 sig
-     , fGain <= CLog 2 (10 ^ (2 ^ (CLog 2 sig - 2))) )
+     , 2  <= BitsLog10 sig
+     , fGain <= BitsExp10 (BitsLog10 sig - 2) )
   => Signal dom (Unsigned window)
-  -> Signal dom (UFixed (CLog 2 sig) fRef)
+  -> Signal dom (UFixed (BitsLog10 sig) fRef)
   -> Signal dom (UFixed iAlpha fAlpha)
   -> DataFlow dom Bool Bool (Signed sig, Signed sig)
-                            (UFixed (CLog 2 (10 ^ (2 ^ (CLog 2 sig - 2))) - fGain) fGain)
+                            (UFixed (BitsExp10 (BitsLog10 sig - 2) - fGain) fGain)
 dfForward window ref alpha = dfPowDetect
                              `seqDF` dfIntgDump window
                              `seqDF` dfLogErr d2 ref alpha
@@ -143,16 +165,16 @@ dfAgc
   :: ( HiddenClockResetEnable dom
      , KnownNat sig, KnownNat fRef, KnownNat window
      , KnownNat iAlpha, KnownNat fAlpha, KnownNat fGain
-     , 1  <= (CLog 2 sig - 2)
+     , 1  <= (BitsLog10 sig - 2)
      , 1  <= sig
-     , 2  <= CLog 2 sig
-     , fGain <= CLog 2 (10 ^ (2 ^ (CLog 2 sig - 2))) )
+     , 2  <= BitsLog10 sig
+     , fGain <= BitsExp10 (BitsLog10 sig - 2) )
   => Signal dom (Unsigned window)
-  -> Signal dom (UFixed (CLog 2 sig) fRef)
+  -> Signal dom (UFixed (BitsLog10 sig) fRef)
   -> Signal dom (UFixed iAlpha fAlpha)
   -> Signal dom Bool
   -> DataFlow dom Bool Bool (Signed sig, Signed sig)
-                            (UFixed (CLog 2 (10 ^ (2 ^ (CLog 2 sig - 2))) - fGain) fGain
+                            (UFixed (BitsExp10 (BitsLog10 sig - 2) - fGain) fGain
                             ,(Signed sig, Signed sig))
 dfAgc window ref alpha en = feedbackLoop logic `seqDF` outReg
   where feedbackLoop ip = hideClockResetEnable loopDF d2 Nil ip
@@ -196,7 +218,7 @@ topEntity ::
   -> Reset XilDom
   -> Signal XilDom Bit
   -> Signal XilDom (Unsigned 5)
-  -> Signal XilDom (UFixed 4 8)
+  -> Signal XilDom (UFixed 3 8)
   -> Signal XilDom (UFixed 1 6)
   -> Signal XilDom (Signed 16)
   -> Signal XilDom Bit
@@ -205,7 +227,7 @@ topEntity ::
   -> Signal XilDom Bit
   -> Signal XilDom Bit
   -> Signal XilDom Bit
-  -> Signal XilDom (Bit, Bit, UFixed 7 7, Bit, Signed 16, Bit, Signed 16, Bit)
+  -> Signal XilDom (Bit, Bit, UFixed 3 4, Bit, Signed 16, Bit, Signed 16, Bit)
 topEntity clk rst en window ref alpha i inIV q inQV outGR outIR outQR =
   let (g,(i',q'))             = (\(a,b)->(a,unbundle b)) $ unbundle outDatas
       (outGV, (outIV, outQV)) = (\(a,b)->(a,unbundle b)) $ unbundle outVs

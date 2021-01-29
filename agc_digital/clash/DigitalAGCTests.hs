@@ -1,26 +1,47 @@
 module DigitalAGCTests where
 
 import Prelude
-import Clash.Prelude (Signed)
+import Clash.Prelude (Signed, Unsigned, System, simulate)
+import Data.Maybe (catMaybes)
 import DigitalAGC
 import Test.QuickCheck
 
+allEqual xs ys = foldl (&&) True $ zipWith (==) xs ys
+
 {- Power detector approximation -}
 
-simPowerDetector :: Double -> Double -> Double
-simPowerDetector i q = sqrt $ (i*i) + (q*q)
+refPowerDetector :: Double -> Double -> Double
+refPowerDetector i q = sqrt $ (i*i) + (q*q)
 
-prop_approx_power :: Signed 16 -> Signed 16 -> Bool
-prop_approx_power i q = let exp = simPowerDetector (fromIntegral i) (fromIntegral q)
-                            act = fromIntegral $ powerDetector i q
-                            percent_margin = 6
-                            lim = 200
-                            error = max exp act - min exp act
-                        in abs i < lim || abs q < lim || error / exp <= percent_margin / 100
+prop_PowerDetector :: Signed 16 -> Signed 16 -> Bool
+prop_PowerDetector i q =
+  let exp = refPowerDetector (fromIntegral i) (fromIntegral q)
+      act = fromIntegral $ powerDetector i q
+      percent_margin = 6
+      error = max exp act - min exp act
+      isExtreme x = abs x < 50 || abs x > (maxBound-50)
+  in isExtreme i || isExtreme q || error <= percent_margin / 100 * exp
 {-
-Above test shows that as long as the signal above 0.6% of the full range, we can expect less than 6% error.
+Above test shows that as long as the signal above 0.3% of the full range, we can expect less than 6% error.
+-}
 
-Not bad for a sqrt etc. implemented with 2 adds!
+refIntgDump :: Int -> [Int] -> [Int]
+refIntgDump _ [] = []
+refIntgDump n xs = let (a,b) = splitAt n xs
+                       window = sum a `div` n
+                   in if length a == n
+                      then window : refIntgDump n b
+                      else []
+
+prop_IntgDump :: Unsigned 4 -> [Unsigned 16] -> Bool
+prop_IntgDump w xs =
+  let exp = refIntgDump (2^w) $ map fromIntegral xs
+      act = map fromIntegral . drop 1 . catMaybes $
+            simulate @System (intgDumpPow2 (pure w) (pure True)) (cycle xs)
+  in xs == [] || allEqual exp act
+
+{- We are equal to our reference integrate and dump function for all window sizes
+   between 2^0 and 2^15, with a single invalid ramp-up value
 -}
 
 
