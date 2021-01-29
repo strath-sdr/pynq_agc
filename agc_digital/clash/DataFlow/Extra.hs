@@ -6,8 +6,6 @@ module DataFlow.Extra (
   liftRegDF,
   counterDF,
   oscillateDF,
-  resizeDF,
-  shiftRDF,
   testBufferDF,
   throttleDF,
   module Clash.Prelude.DataFlow
@@ -37,6 +35,7 @@ gatedVToDF f = DF $ \x vi ro -> let en = vi .&&. ro
                                     (vo, x') = f en x
                                 in  (x', vo, ro)
 
+-- | Convert a clock-enabled circuit with Maybe output to a DataFlow circuit
 gatedMaybeToDF
   :: (HiddenClockResetEnable dom, Default b)
   => (Signal dom Bool -> Signal dom a
@@ -49,12 +48,7 @@ gatedMaybeToDF f = let f' = \en a -> (\o->(fmap isJust o, fmap (fromMaybe def) o
 regDF
   :: (HiddenClockResetEnable dom, Num a, NFDataX a)
   => DataFlow dom Bool Bool a a
-regDF = hideClockResetEnable fifoDF d2 Nil --(repeat @2 0) -- TODO Remove this repeat
-                                                     -- 2!! This is what's
-                                                     -- causing all the ramp
-                                                     -- up!! Test that
-                                                     -- everything still works
-                                                     -- though.
+regDF = hideClockResetEnable fifoDF d2 Nil
 
 -- | FIFO DataFlow circuit for buffering test input data
 testBufferDF
@@ -94,22 +88,4 @@ oscillateDF
   => a                            -- ^ Initial value
   -> DataFlow dom Bool Bool () a  -- ^ Oscillator DataFlow circuit
 oscillateDF a = gatedToDF $ \en _ -> let x = regEn a en $ (-1)*x
-                                   in x
-
--- | A right shift DataFlow circuit
-shiftRDF
-  :: (Functor f, Bits b)
-  => Int                                 -- ^ # bits to shift right
-  -> DataFlow dom Bool Bool (f b) (f b)  -- ^ Shift DataFlow circuit
-shiftRDF = pureDF . fmap . flip shiftR
-
--- | Fixed point resize DataFlow circuit
-resizeDF
-  :: (Functor fc, KnownNat a, KnownNat b)
-  => SNat i                                 -- ^ Output integer bits
-  -> SNat f                                 -- ^ Output fractional bits
-  -> DataFlow dom Bool Bool (fc (SFixed a b)) (fc (SFixed i f)) -- ^ Resize DataFlow circuit
-resizeDF i f = pureDF $ fmap (resizeFProxy i f)
-  where
-  resizeFProxy :: (KnownNat a, KnownNat b) => SNat i -> SNat f -> SFixed a b -> SFixed i f
-  resizeFProxy SNat SNat = resizeF
+                                     in x

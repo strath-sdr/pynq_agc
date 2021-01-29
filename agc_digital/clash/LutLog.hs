@@ -20,13 +20,6 @@ resizeUF' = resizeF . add halfstep
   where halfstep :: UFixed 0 (frac2 + 1)
         halfstep = succ 0
 
-ufToDouble :: forall n m . (KnownNat n, KnownNat m) => UFixed n m -> Double
-ufToDouble u = fromIntegral (unUF u) / (snatToNum $ pow2SNat (SNat :: SNat m))
-
-sfToDouble :: forall n m . (KnownNat n, KnownNat m) => SFixed n m -> Double
-sfToDouble u = fromIntegral (unSF u) / (snatToNum $ pow2SNat (SNat :: SNat m))
-
-
 -- Log 2
 
 lutLog2I :: forall n m . (KnownNat n, KnownNat m, FracUFixedC 1 m, 1 <= n) => Unsigned n -> UFixed ( CLog 2 n) m
@@ -48,8 +41,8 @@ lutLog2 :: forall n m . (KnownNat n, KnownNat m, FracUFixedC 1 m, 1 <= n) => SNa
 lutLog2 _ = lutLog2I
 
 logBinFileName :: SNat m -> String
-logBinFileName m = "loglut.bin"
-                   --"loglut_"   -- Can't synthesize string concat in clash...
+logBinFileName m = "loglut.mem"
+                   --"loglut_"   -- Can't synthesize string concat in clash... What about using TH?
                    --L.++ show m
                    --L.++ ".bin"
 
@@ -59,19 +52,6 @@ writeLutLogFile m = do
       ufs  = [fLitR' (logBase 2 (1+i/msqr)) :: UFixed 0 m | i<-[0 .. msqr - 1]]
       bvs = L.map (filter (/= '_') . show . pack) ufs
   writeFile (logBinFileName m) (unlines bvs)
-
-prop_equal_float = Q.forAll (Q.suchThat Q.arbitrary (>1)) prop_equal_float'
-prop_equal_float' :: Unsigned 16 -> Bool
-prop_equal_float' x = let exp = logBase 2 (fromIntegral x)
-                          act = ufToDouble $ lutLog2 d6 x
-                          percent_margin = 0.5
-                          error = max exp act - min exp act
-                      in error / exp <= percent_margin / 100
-
-{-
-Q.quickCheck $ Q.withMaxSuccess 10000  prop_equal_float
--}
-
 
 -- Log 10
 
@@ -88,14 +68,6 @@ lutLog10
   :: forall n m . (KnownNat n, KnownNat m, 1 <= n)
      => SNat m -> Unsigned n -> Fixed Unsigned (CLog 2 n) m
 lutLog10 _ = lutLog10I
-
-prop_equal_float_10 = Q.forAll (Q.suchThat Q.arbitrary (>1)) prop_equal_float_10'
-prop_equal_float_10' :: Unsigned 16 -> Bool
-prop_equal_float_10' x = let exp = logBase 10 (fromIntegral x)
-                             act = ufToDouble $ lutLog10 d6 x
-                             percent_margin = 2
-                             error = max exp act - min exp act
-                         in error / exp <= percent_margin / 100
 
 {-
 What about inverse log?
@@ -130,7 +102,7 @@ lutAntilog2 x = y
               ) xInt :: UFixed (2^n) 0)) xInt
 
 antilogBinFileName :: SNat m -> String
-antilogBinFileName m = "antiloglut.bin"
+antilogBinFileName m = "antiloglut.mem"
                        --"antiloglut_"
                        --L.++ show m
                        --L.++ ".bin"
@@ -142,13 +114,6 @@ writeLutAntilogFile m = do
       bvs = L.map (filter (/= '_') . show . pack) ufs
   writeFile (antilogBinFileName m) (unlines bvs)
 
-prop_approx_pow2 :: UFixed 4 6 -> Bool
-prop_approx_pow2 x = let exp = 2 ** (ufToDouble x)
-                         act = fromIntegral $ lutAntilog2 x
-                         percent_margin = 1
-                         error = max exp act - min exp act
-                     in error < 1 || error / exp <= percent_margin / 100
-
  -- Antilog 10
 
 lutAntilog10
@@ -159,10 +124,3 @@ lutAntilog10 = resize . lutAntilog2 . trunc . mul coef
         coef = resizeUF' ( $$(fLit $ logBase 2 10) :: UFixed 2 128 )
         trunc :: (KnownNat a, KnownNat b) => UFixed a b -> UFixed (n+2) m
         trunc = resizeUF'
-
-prop_approx_pow10 :: UFixed 2 6 -> Bool
-prop_approx_pow10 x = let exp = 10 ** (ufToDouble x)
-                          act = fromIntegral $ lutAntilog10 x
-                          percent_margin = 3
-                          error = max exp act - min exp act
-                      in error < 1 || error / exp <= percent_margin / 100
