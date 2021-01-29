@@ -92,21 +92,20 @@ dfIntgDump window = gatedMaybeToDF (intgDumpPow2 window)
 
 {- Calculating log error -}
 type BitsLog10 n = CLog 2 (CLog 10 (2^n))
-type NonZeroLog10 n = (1 <= CLog 10 (2^n))
+type NonZeroLog10 n = (1 <= CLog 10 (2^n), 1 <= BitsLog10 n)
 type BitsExp10 n = CLog 2 (10 ^ (2 ^ n))
 
-dfLogErr :: forall dom shift power fRef iAlpha fAlpha
-         .  ( HiddenClockResetEnable dom, KnownNat shift, KnownNat power, KnownNat fRef
+dfLogErr :: forall dom power fRef iAlpha fAlpha
+         .  ( HiddenClockResetEnable dom, KnownNat power, KnownNat fRef
             , KnownNat iAlpha, KnownNat fAlpha
-            , shift <= BitsLog10 power
             , NonZeroLog10 power
             , 1 <= power)
-         => SNat shift -> Signal dom (UFixed (BitsLog10 power) fRef) -> Signal dom (UFixed iAlpha fAlpha)
-         -> DataFlow dom Bool Bool (Unsigned power) (SFixed (BitsLog10 power - shift + 1) (fRef + shift))
-dfLogErr shift ref alpha = gatedToDF (\en x -> liftA3 f ref alpha x)
+         => Signal dom (UFixed (BitsLog10 power) fRef) -> Signal dom (UFixed iAlpha fAlpha)
+         -> DataFlow dom Bool Bool (Unsigned power) (SFixed (BitsLog10 power + 1) fRef)
+dfLogErr ref alpha = gatedToDF (\en x -> liftA3 f ref alpha x)
   where f ref alpha x = let logX = toSF $ lutLog10 (SNat :: SNat fRef) x
                             dif  = toSF ref - logX
-                            err  = (toSF $ resizeF alpha) * (shiftSF shift dif)
+                            err  = (toSF $ resizeF alpha) * dif
                         in err
 -- ^ Verify my use of gatedToDF here (just need to lift a pure-ish function on Signals to a DF)
 
@@ -134,18 +133,17 @@ dfForward
   :: ( HiddenClockResetEnable dom
      , KnownNat sig, KnownNat fRef, KnownNat window
      , KnownNat iAlpha, KnownNat fAlpha, KnownNat fGain
-     , 1  <= (BitsLog10 sig - 2)
+     , NonZeroLog10 sig
      , 1  <= sig
-     , 2  <= BitsLog10 sig
-     , fGain <= BitsExp10 (BitsLog10 sig - 2) )
+     , fGain <= BitsExp10 (BitsLog10 sig) )
   => Signal dom (Unsigned window)
   -> Signal dom (UFixed (BitsLog10 sig) fRef)
   -> Signal dom (UFixed iAlpha fAlpha)
   -> DataFlow dom Bool Bool (Signed sig, Signed sig)
-                            (UFixed (BitsExp10 (BitsLog10 sig - 2) - fGain) fGain)
+                            (UFixed (BitsExp10 (BitsLog10 sig) - fGain) fGain)
 dfForward window ref alpha = dfPowDetect
                              `seqDF` dfIntgDump window
-                             `seqDF` dfLogErr d2 ref alpha
+                             `seqDF` dfLogErr ref alpha
                              `seqDF` dfAccum
                              `seqDF` dfAntilog
 
@@ -165,16 +163,15 @@ dfAgc
   :: ( HiddenClockResetEnable dom
      , KnownNat sig, KnownNat fRef, KnownNat window
      , KnownNat iAlpha, KnownNat fAlpha, KnownNat fGain
-     , 1  <= (BitsLog10 sig - 2)
+     , NonZeroLog10 sig
      , 1  <= sig
-     , 2  <= BitsLog10 sig
-     , fGain <= BitsExp10 (BitsLog10 sig - 2) )
+     , fGain <= BitsExp10 (BitsLog10 sig) )
   => Signal dom (Unsigned window)
   -> Signal dom (UFixed (BitsLog10 sig) fRef)
   -> Signal dom (UFixed iAlpha fAlpha)
   -> Signal dom Bool
   -> DataFlow dom Bool Bool (Signed sig, Signed sig)
-                            (UFixed (BitsExp10 (BitsLog10 sig - 2) - fGain) fGain
+                            (UFixed (BitsExp10 (BitsLog10 sig) - fGain) fGain
                             ,(Signed sig, Signed sig))
 dfAgc window ref alpha en = feedbackLoop logic `seqDF` outReg
   where feedbackLoop ip = hideClockResetEnable loopDF d2 Nil ip
@@ -227,7 +224,7 @@ topEntity ::
   -> Signal XilDom Bit
   -> Signal XilDom Bit
   -> Signal XilDom Bit
-  -> Signal XilDom (Bit, Bit, UFixed 3 4, Bit, Signed 16, Bit, Signed 16, Bit)
+  -> Signal XilDom (Bit, Bit, UFixed 14 13, Bit, Signed 16, Bit, Signed 16, Bit)
 topEntity clk rst en window ref alpha i inIV q inQV outGR outIR outQR =
   let (g,(i',q'))             = (\(a,b)->(a,unbundle b)) $ unbundle outDatas
       (outGV, (outIV, outQV)) = (\(a,b)->(a,unbundle b)) $ unbundle outVs

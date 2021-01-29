@@ -144,16 +144,17 @@ isSteady n ref percent = (<=n) . maximum . map length . filter (\a->False == a!!
 
 -- TODO how do we deal with quantisation issues? We don't get a good idea of
 -- logarithmic distance when we've clipped... should I be using our multiplied input wordlength instead of 16? Yeah, probably.
+-- TODO are my log luts the same now?
 
 simOutPower g1 g2 n =
-  let ref = 4.0 :: UFixed 4 8
-      alpha = 1.0 :: UFixed 1 6
+  let ref = 4.0 :: UFixed 3 8
+      alpha = 0.1 :: UFixed 1 6
       window = 7 :: Unsigned 5
       inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
       fLog = SNat :: SNat 8
-      fGain = SNat :: SNat 7
+      fGain = SNat :: SNat 13
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
-      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 7 7, (Signed 16, Signed 16)), Bool, Bool)
+      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 14 13, (Signed 16, Signed 16)), Bool, Bool)
       outs = drop 1 . take (10000 + rec_time*(2^window)) $ simulate @System ip inputSig
       out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
       out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain
