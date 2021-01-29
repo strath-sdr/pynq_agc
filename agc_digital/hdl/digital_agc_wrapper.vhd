@@ -25,7 +25,7 @@ entity agc_v1_0 is
     m_q_axis_tready : in std_logic;
     s_i_axis_tready : out std_logic;
     s_q_axis_tready : out std_logic;
-    m_g_axis_tdata  : out std_logic_vector(13 downto 0);
+    m_g_axis_tdata  : out std_logic_vector(31 downto 0);
     m_g_axis_tvalid : out std_logic;
     m_i_axis_tdata  : out std_logic_vector(15 downto 0);
     m_i_axis_tvalid : out std_logic;
@@ -100,7 +100,7 @@ architecture arch_imp of agc_v1_0 is
     m_q_axis_tready : in std_logic;
     s_i_axis_tready : out std_logic;
     s_q_axis_tready : out std_logic;
-    m_g_axis_tdata  : out std_logic_vector(13 downto 0);
+    m_g_axis_tdata  : out std_logic_vector(31 downto 0);
     m_g_axis_tvalid : out std_logic;
     m_i_axis_tdata  : out std_logic_vector(15 downto 0);
     m_i_axis_tvalid : out std_logic;

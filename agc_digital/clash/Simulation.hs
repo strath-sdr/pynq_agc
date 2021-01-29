@@ -205,6 +205,17 @@ prop_corrTest g1 g2 n =
       correlation = corr $ zip (drop recTime inI) (drop recTime outI)
   in property $ correlation > 0.9
 
+bl10 n = fromIntegral . ceiling $ logBase 2 (logBase 10 (2**n))
+be10 n = fromIntegral . ceiling $ logBase 2 (10 ** (2**n))
+
+bitsCalc :: Double -> Double -> Double -> (Double, Double) -> Double
+         -> (Double, (Double, Double), (Double, Double))
+bitsCalc window sig fLog (iAlpha, fAlpha) fGain =
+  let intgInternal = 2**window + sig
+      iLog = bl10 sig
+      iGain = be10 iLog - fGain
+  in (intgInternal, (iLog,fLog), (iGain, fGain))
+
 sinInput :: Double -> Double -> [Signed 16]
 sinInput fs dt = map (fromInteger . round . ((2**15-1) * ) .  sin . (2*pi*fs * )) [0.0, dt..]
 

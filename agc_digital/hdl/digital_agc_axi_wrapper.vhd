@@ -27,7 +27,7 @@ entity agc_axi_wrapper is
     m_q_axis_tready : in std_logic;
     s_i_axis_tready : out std_logic;
     s_q_axis_tready : out std_logic;
-    m_g_axis_tdata  : out std_logic_vector(13 downto 0);
+    m_g_axis_tdata  : out std_logic_vector(31 downto 0);
     m_g_axis_tvalid : out std_logic;
     m_i_axis_tdata  : out std_logic_vector(15 downto 0);
     m_i_axis_tvalid : out std_logic;
@@ -146,7 +146,7 @@ architecture arch_imp of agc_axi_wrapper is
          aresetn         : in std_logic;
          en              : in std_logic;
          window          : in unsigned(4 downto 0);
-         ref             : in unsigned(11 downto 0);
+         ref             : in unsigned(14 downto 0);
          alpha           : in unsigned(6 downto 0);
          s_i_axis_tdata  : in signed(15 downto 0);
          s_i_axis_tvalid : in std_logic;
@@ -157,7 +157,7 @@ architecture arch_imp of agc_axi_wrapper is
          m_q_axis_tready : in std_logic;
          s_i_axis_tready : out std_logic;
          s_q_axis_tready : out std_logic;
-         m_g_axis_tdata  : out unsigned(13 downto 0);
+         m_g_axis_tdata  : out unsigned(26 downto 0);
          m_g_axis_tvalid : out std_logic;
          m_i_axis_tdata  : out signed(15 downto 0);
          m_i_axis_tvalid : out std_logic;
@@ -471,7 +471,7 @@ begin
         en  => slv_reg0(0),
         -- AXI signals
         window => unsigned(slv_reg1(4 downto 0)),
-        ref    => unsigned(slv_reg2(11 downto 0)),
+        ref    => unsigned(slv_reg2(14 downto 0)),
         alpha  => unsigned(slv_reg3(6 downto 0)),
 
         -- Non-axi signals
@@ -485,7 +485,7 @@ begin
 
         s_i_axis_tready => s_i_axis_tready,
         s_q_axis_tready => s_q_axis_tready,
-        std_logic_vector(m_g_axis_tdata) => m_g_axis_tdata,
+        std_logic_vector(m_g_axis_tdata) => m_g_axis_tdata(26 downto 0),
         m_g_axis_tvalid => m_g_axis_tvalid,
         std_logic_vector(m_i_axis_tdata)  => m_i_axis_tdata,
         m_i_axis_tvalid => m_i_axis_tvalid,

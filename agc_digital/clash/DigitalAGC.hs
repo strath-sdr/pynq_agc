@@ -236,5 +236,6 @@ topEntity clk rst en window ref alpha i inIV q inQV outGR outIR outQR =
                                 clk rst (toEnable $ pure True)
   in bundle (boolToBit <$> inIR, boolToBit <$> inQR, g, boolToBit <$> outGV, i', boolToBit <$> outIV, q', boolToBit <$> outQV)
 
--- TODO Update wordlengths in wrapper, including padding Gain to nearest byte
 -- TODO Make wrapper project with loopback
+-- TODO Sketch out ipywidget controlling alpha, ref, window, [input type, length, amplitudes]
+-- TODO see if we can avoid saturation issues
