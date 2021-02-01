@@ -1,13 +1,13 @@
-IP_AAGC = agc_analogue/ip/component.xml
-IP_DAGC = agc_digital/ip/component.xml
+IP_AAGC = ip/agc_analogue/ip/component.xml
+IP_DAGC = ip/agc_digital/ip/component.xml
 
 all: $(IP_AAGC) $(IP_DAGC)
 
 $(IP_AAGC):
-	make -C agc_analogue
+	make -C ip/agc_analogue
 
 $(IP_DAGC):
-	make -C agc_digital
+	make -C ip/agc_digital
 
 clean:
-	make -C agc_analogue clean; make -C agc_digital clean
+	make -C ip/agc_analogue clean; make -C ip/agc_digital clean

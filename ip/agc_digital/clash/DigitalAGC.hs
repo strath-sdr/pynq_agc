@@ -75,7 +75,7 @@ dfPowDetect = pureDF (uncurry powerDetector)
 intgDumpPow2
   :: forall dom window n . (HiddenClockResetEnable dom, KnownNat window, KnownNat n)
   => Signal dom (Unsigned window) -> Signal dom Bool -> Signal dom (Unsigned n) -> Signal dom (Maybe (Unsigned n))
-intgDumpPow2 window en x = mealy f initState (bundle (en, x, window))
+intgDumpPow2 window' en x = mealy f initState (bundle (en, x, window))
   where initState :: (Unsigned (2^window), Unsigned (2^window + n))
         initState = (0,0)
         f  s       (False, _, _    ) = (s, Nothing)
@@ -87,6 +87,7 @@ intgDumpPow2 window en x = mealy f initState (bundle (en, x, window))
                                          , acc + (resize x))                                             -- accumulator
                                        , Nothing                                                         -- output
                                        )
+        window = register 0 window'
 
 dfIntgDump window = gatedMaybeToDF (intgDumpPow2 window)
 
@@ -232,7 +233,7 @@ topEntity clk rst en window ref alpha i inIV q inQV outGR outIR outQR =
                                    (bundle (bitToBool <$> inIV, bitToBool <$> inQV))
                                    (bundle (bitToBool <$> outGR, bundle (bitToBool <$> outIR, bitToBool <$> outQR)))
       ip                      = exposeClockResetEnable
-                                   (df $ lockStep `seqDF` dfAgc window ref alpha (bitToBool <$> en) `seqDF` stepLock `seqDF` secondDF stepLock)
+                                   (df $ lockStep `seqDF` hideClockResetEnable fifoDF d2 Nil `seqDF` dfAgc window (register 0 ref) (register 0 alpha) (register False (bitToBool <$> en)) `seqDF` hideClockResetEnable fifoDF d2 Nil `seqDF` stepLock `seqDF` secondDF stepLock)
                                 clk rst (toEnable $ pure True)
   in bundle (boolToBit <$> inIR, boolToBit <$> inQR, g, boolToBit <$> outGV, i', boolToBit <$> outIV, q', boolToBit <$> outQV)
 

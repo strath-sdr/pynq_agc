@@ -11,8 +11,8 @@ set_property -name "target_language" -value "VHDL" -objects $obj
 
 # Add sources
 add_files { clash/vhdl/ hdl/ }
-add_files clash/vhdl/DigitalAGC/digitalAgc/loglut.mem
-add_files clash/vhdl/DigitalAGC/digitalAgc/antiloglut.mem
+add_files [get_files clash/vhdl/DigitalAGC/digitalAgc/loglut.mem]
+add_files [get_files clash/vhdl/DigitalAGC/digitalAgc/antiloglut.mem]
 update_compile_order -fileset sources_1
 
 # Build IP
@@ -21,6 +21,7 @@ ipx::unload_core ./ip/component.xml
 ipx::edit_ip_in_project -upgrade true -name tmp_edit_project -directory ./ip ./ip/component.xml
 update_compile_order -fileset sources_1
 set_property core_revision 1 [ipx::current_core]
+set_property supported_families {zynquplus Production qzynq Beta zynquplus Beta azynq Beta zynq Beta} [ipx::current_core]
 ipx::create_xgui_files [ipx::current_core]
 ipx::update_checksums [ipx::current_core]
 ipx::save_core [ipx::current_core]
