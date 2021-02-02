@@ -55,6 +55,7 @@ def calc_ref(t, mode, fc, data_rate, random_data):
         modulated = modulated / max_sig
         return (modulated.real, modulated.imag)
 
+
 class AgcDashModel():
 
     def __init__(self, fs = 1000000, N = 10000):
@@ -106,6 +107,12 @@ class AgcDashModel():
 
     def test_input(self, ref, envelope):
         return (ref[0]*envelope, ref[1]*envelope)
+
+    def calc_fft(self, i, q):
+        freq_y = np.fft.fftshift(20*np.log10(np.abs(np.fft.fft(np.array(i) + 1j*np.array(q)))))
+        freq_x = np.fft.fftshift(np.fft.fftfreq(len(freq_y), 1/self.fs))
+        return (freq_x, freq_y)
+
 
     def agc_cfg(self, en, win, ref, alpha):
         ADDR_EN    = 0

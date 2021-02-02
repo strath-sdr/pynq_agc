@@ -130,7 +130,7 @@ class AgcDashController():
 
             changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
             if 'btn-add-handle' in changed_id:
-                add_envelope_handle(fig_in['layout']['shapes'], max(trace_t))
+                add_envelope_handle(fig_in['layout']['shapes'], max(self.model.t))
             if 'btn-rm-handle' in changed_id:
                 rm_envelope_handle(fig_in['layout']['shapes'])
 
@@ -153,21 +153,62 @@ class AgcDashController():
             [Input('new-input-signal', 'children'),
              Input('agc-ref', 'value'),
              Input('agc-alpha', 'value'),
-             Input('agc-window', 'value')
+             Input('agc-window', 'value'),
+             Input('agc-bypass', 'value'),
+             Input('agc-graph-mode', 'value')
              ],
             [State('graph-inputs', 'figure'), State('graph-agc', 'figure')])
-        def agc_stage_callback(_,agc_ref,agc_alpha,agc_window,fig_in,fig_agc):
-
-            self.model.agc_cfg(1,agc_window,agc_ref,agc_alpha)
+        def agc_stage_callback(_,agc_ref,agc_alpha,agc_window,agc_bypass,graph_mode,fig_in,fig_agc):
+            # TODO Check if State uses client... if so, remove the graph-inputs state arg to avoid round trip for no reason
+            agc_en = 0 if agc_bypass else 1
+            self.model.agc_cfg(agc_en,agc_window,agc_ref,agc_alpha)
 
             (trace_i, trace_q) = (fig_in['data'][0]['y'],fig_in['data'][1]['y'])
             (agc_i, agc_q) = self.model.agc_loopback(trace_i,trace_q)
             trace_t = self.model.t
 
-            fig_agc['data'][0]['x'] = trace_t
-            fig_agc['data'][0]['y'] = agc_i
-            fig_agc['data'][1]['x'] = trace_t
-            fig_agc['data'][1]['y'] = agc_q
+            if graph_mode == 'time':
+                fig_agc['data'][0]['x'] = trace_t
+                fig_agc['data'][0]['y'] = agc_i
+                fig_agc['data'][1]['x'] = trace_t
+                fig_agc['data'][1]['y'] = agc_q
+                fig_agc['layout']['xaxis']['title'] = "Time (s)"
+                fig_agc['layout']['yaxis']['title'] = "Normalised Amplitude"
+                fig_agc['layout']['shapes'] = [
+                    dict(
+                        visible = True,
+                        type = 'rect',
+                        editable = False,
+                        layer = 'below',
+                        opacity = 0.6,
+                        fillcolor = '#DCD8EA',
+                        xref = 'x',
+                        x0 = self.model.t[-1] - (2**agc_window / self.model.fs),
+                        x1 = self.model.t[-1],
+                        yref = 'y',
+                        y0 = -1,
+                        y1 = 1,
+                        line = {'width':0},
+                    )
+                ]
+            if graph_mode == 'const':
+                fig_agc['data'][0]['x'] = agc_i
+                fig_agc['data'][0]['y'] = agc_q
+                fig_agc['data'][1]['x'] = []
+                fig_agc['data'][1]['y'] = []
+                fig_agc['layout']['xaxis']['title'] = "I Amplitude"
+                fig_agc['layout']['yaxis']['title'] = "Q Amplitude"
+                fig_agc['layout']['shapes']=[]
+            if graph_mode == 'freq':
+                (freq_x, freq_y) = self.model.calc_fft(agc_i, agc_q)
+                fig_agc['data'][0]['x'] = freq_x
+                fig_agc['data'][0]['y'] = freq_y
+                fig_agc['data'][1]['x'] = []
+                fig_agc['data'][1]['y'] = []
+                fig_agc['layout']['xaxis']['title'] = "Frequency (Hz)"
+                fig_agc['layout']['yaxis']['title'] = "Power dB"
+                fig_agc['layout']['shapes']=[]
+                
             return fig_agc
 
 

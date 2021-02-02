@@ -70,10 +70,18 @@ _agc_control_panel = lambda state: dbc.Container([
                         dbc.InputGroupAddon(str(2**state['agc_window'])+" Samples",id='agc-window-label', addon_type="append"),
                 ], className='mt-1'),
                 
-                html.Div(
-                    className = 'd-flex justify-content-center mt-1',
-                    children=[html.Button("Bypass AGC", id='agc-en', className="btn btn-outline-warning")]
-                )
+                dbc.InputGroup([
+                        dbc.InputGroupAddon("Bypass AGC", addon_type="prepend"),
+                        dbc.Checklist(
+                            options=[
+                                {"label": "", "value": 1},
+                            ],
+                            value=[],
+                            id="agc-bypass",
+                            switch=True,
+                            className = "form-control"
+                        ),
+                ], className='mt-1'),
 
                 ]),
              ])
@@ -89,13 +97,14 @@ _agc_control_panel = lambda state: dbc.Container([
                         dbc.Select(id='agc-graph-mode',options=[
                             {"label": "Time", "value": 'time'},
                             {"label": "Constellation", "value": 'const'},
-                            {"label": "Frequency Modulated", "value": 'freq'}
+                            {"label": "Frequency", "value": 'freq'}
                         ], value=state['agc_graph_mode']),
                 ], className='mt-1'),
                 ])
             ])
         ])
-    )
+    
+    ,className='mt-3')
 ])
 
 _in_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.Loading( type='dot', className='loading-anim align-self-center',  children=[
@@ -144,10 +153,12 @@ _in_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.Lo
                 'yref': 'y',
                 'yanchor': y,
                 'ysizemode':'pixel',
-                'fillcolor': 'rgb(165, 10, 235)',
+                'fillcolor': '#001EB4',
+                'opacity': 0.9,
                 'line': {
-                    'width': 4,
-                    'color': 'rgb(165, 10, 235)'
+                    'width': 5,
+                    'color': '#001EB4',
+                    'opacity': 0.9,
                 }
             } for (i,(x,y)) in enumerate(state['handle_pos'])]
         }
