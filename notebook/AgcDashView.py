@@ -98,7 +98,8 @@ _agc_control_panel = lambda state: dbc.Container([
     )
 ])
 
-_in_graph = lambda state: dcc.Graph(
+_in_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.Loading( type='dot', className='loading-anim align-self-center',  children=[
+    dcc.Graph(
     id='graph-inputs',
     className='six columns',
     figure={
@@ -157,9 +158,10 @@ _in_graph = lambda state: dcc.Graph(
             'shapePosition': True
         }
     }
-)
+)])])
 
-_agc_graph = lambda state: dcc.Graph(
+_agc_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.Loading( type='dot', className='loading-anim align-self-center', children=[
+    dcc.Graph(
     id='graph-agc',
     figure={
         'data': [{
@@ -190,8 +192,9 @@ _agc_graph = lambda state: dcc.Graph(
                         x=1,
             ),
         }
-    }
-)
+    })
+    ])
+])
 
 view_template = lambda state: html.Div(style={'font-size':'12px'},className='row', children=[
     dbc.Container([
@@ -204,6 +207,6 @@ view_template = lambda state: html.Div(style={'font-size':'12px'},className='row
             dbc.Col(_agc_graph(state)        , width=8),
             dbc.Col(_agc_control_panel(state), width=4),
         ], className='align-items-center')),  className='mt-3')
-    ]
-    )
+    ]),
+    html.Div(id='new-input-signal', style={'display':'none'})
 ])

@@ -117,19 +117,16 @@ class AgcDashController():
             return f'{int(f)} kHz'
 
         @app.callback(
-            [Output('graph-inputs', 'figure'),Output('graph-agc', 'figure')],
+            [Output('graph-inputs', 'figure'), Output('new-input-signal', 'children')],
             [Input('graph-inputs', 'relayoutData'),
              Input('btn-add-handle', 'n_clicks'),
              Input('btn-rm-handle', 'n_clicks'),
              Input('in-sig-type', 'value'),
              Input('in-f-carrier', 'value'),
              Input('in-f-data', 'value'),
-             Input('agc-ref', 'value'),
-             Input('agc-alpha', 'value'),
-             Input('agc-window', 'value')
              ],
-            [State('graph-inputs', 'figure'),State('graph-agc', 'figure')])
-        def main_callback(_,_btnadd,_btnrm,in_sig_type,in_f_carrier,in_data_rate,agc_ref,agc_alpha,agc_window,fig_in,fig_agc):
+            [State('graph-inputs', 'figure')])
+        def input_stage_callback(_,_btnadd,_btnrm,in_sig_type,in_f_carrier,in_data_rate,fig_in):
 
             changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
             if 'btn-add-handle' in changed_id:
@@ -137,27 +134,43 @@ class AgcDashController():
             if 'btn-rm-handle' in changed_id:
                 rm_envelope_handle(fig_in['layout']['shapes'])
 
-            self.model.agc_cfg(1,agc_window,agc_ref,agc_alpha)
-
             in_f_carrier = in_f_carrier*1000
             (ref_i,ref_q) = self.model.ref_signal(in_sig_type, in_f_carrier,in_data_rate)
 
-            env = self.model.envelope(get_envelope_handles(fig_in['layout']['shapes']))
+            handles = get_envelope_handles(fig_in['layout']['shapes'])
+            env = self.model.envelope(handles)
             (trace_i, trace_q) = self.model.test_input((ref_i,ref_q),env)
-            (agc_i, agc_q) = self.model.agc_loopback(trace_i,trace_q)
             trace_t = self.model.t
 
             fig_in['data'][0]['x'] = trace_t
             fig_in['data'][0]['y'] = trace_i
             fig_in['data'][1]['x'] = trace_t
             fig_in['data'][1]['y'] = trace_q
+            return fig_in, [f'{in_sig_type} {in_f_carrier} {in_data_rate}, {handles}']
+
+        @app.callback(
+            Output('graph-agc', 'figure'),
+            [Input('new-input-signal', 'children'),
+             Input('agc-ref', 'value'),
+             Input('agc-alpha', 'value'),
+             Input('agc-window', 'value')
+             ],
+            [State('graph-inputs', 'figure'), State('graph-agc', 'figure')])
+        def agc_stage_callback(_,agc_ref,agc_alpha,agc_window,fig_in,fig_agc):
+
+            self.model.agc_cfg(1,agc_window,agc_ref,agc_alpha)
+
+            (trace_i, trace_q) = (fig_in['data'][0]['y'],fig_in['data'][1]['y'])
+            (agc_i, agc_q) = self.model.agc_loopback(trace_i,trace_q)
+            trace_t = self.model.t
 
             fig_agc['data'][0]['x'] = trace_t
             fig_agc['data'][0]['y'] = agc_i
             fig_agc['data'][1]['x'] = trace_t
             fig_agc['data'][1]['y'] = agc_q
-            return fig_in, fig_agc
+            return fig_agc
 
 
-    def show(self):
-        return self.app.run_server(mode='inline', host=ifaddresses('eth0')[AF_INET][0]['addr'], height=810)
+    def show(self,debug=False):
+        mode = 'external' if debug else 'inline'
+        return self.app.run_server(mode=mode, host=ifaddresses('eth0')[AF_INET][0]['addr'], height=810)
