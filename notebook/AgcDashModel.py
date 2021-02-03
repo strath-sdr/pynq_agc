@@ -69,7 +69,7 @@ class AgcDashModel():
         self._t           = np.array([i/fs for i in range(N)])
 
         # Overlay config
-        ol = Overlay("block_design.bit")
+        ol = Overlay("agc_loopback.bit")
         self._ol = ol
         
         #Avoid PYNQ's get_attr overhead by aliasing IPs
