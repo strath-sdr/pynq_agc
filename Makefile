@@ -8,7 +8,11 @@ TARBALL = pynq_agc.tar.gz
 all : $(TARBALL)
 
 $(TARBALL): $(Z2_LOOPBACK) $(ZCU111_LOOPBACK) $(2x2_LOOPBACK)
-	tar -czf $(TARBALL)  *
+	tar -czf $(TARBALL) \
+	--exclude="boards/Pynq-Z2/prj_loopback" \
+	--exclude="boards/ZCU111/prj_loopback" \
+	--exclude="boards/RFSoC2x2/prj_loopback" \
+	*
 
 $(IP_AAGC):
 	make -C ip/agc_analogue
