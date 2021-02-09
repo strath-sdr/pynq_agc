@@ -1,28 +1,13 @@
 module DigitalAGC where
 
 import Clash.Prelude
-import LutLog
+import CordicLog
 import DataFlow.Extra
 import Data.Maybe (fromMaybe)
 
+import qualified Prelude as P
+
 {- Numeric helper functions -}
-
-toSigned :: forall n . KnownNat n => Unsigned n -> Signed (n+1)
-toSigned u = let  u' = resize u :: Unsigned (n+1)
-             in fromIntegral u'
-
-toUnsigned :: forall n . KnownNat n => Signed (n+1) -> Unsigned n
-toUnsigned s = let u = fromIntegral s :: Unsigned (n+1)
-               in resize u
-
-scale :: forall n m f . (KnownNat n, KnownNat m,  KnownNat f) => UFixed (n+m) f -> Signed (n+1)
-scale = toSigned . unpack . v2bv . takeI . bv2v . pack
-
-toSF :: forall n m . (KnownNat n, KnownNat m) => UFixed n m -> SFixed (n+1) m
-toSF = sf (SNat :: SNat m) . toSigned . unUF
-
-toUF :: forall n m . (KnownNat n, KnownNat m) => SFixed (n+1) m -> UFixed n m
-toUF = uf (SNat :: SNat m) . toUnsigned . unSF
 
 shiftSF :: (KnownNat n, KnownNat i, KnownNat f, n <= i) => SNat n -> SFixed i f -> SFixed (i-n) (f+n)
 shiftSF n x = resizeF $ shiftR x (snatToNum n)
@@ -92,22 +77,29 @@ intgDumpPow2 window' en x = mealy f initState (bundle (en, x, window))
 dfIntgDump window = gatedMaybeToDF (intgDumpPow2 window)
 
 {- Calculating log error -}
-type BitsLog10 n = CLog 2 (CLog 10 (2^n))
-type NonZeroLog10 n = (1 <= CLog 10 (2^n), 1 <= BitsLog10 n)
-type BitsExp10 n = CLog 2 (10 ^ (2 ^ n))
 
-dfLogErr :: forall dom power fRef iAlpha fAlpha
-         .  ( HiddenClockResetEnable dom, KnownNat power, KnownNat fRef
+paramsVec :: Vec 32 (Int, SFixed 5 32)
+paramsVec = $(listToVecTH $ P.take 32 (P.zip shiftSequence arctanhs))
+
+eLn2sVec :: Vec 27 (UFixed 5 32)
+eLn2sVec = $(listToVecTH $ P.take 27 eLn2s)
+
+kScaling :: SFixed 5 32
+kScaling = $$(fLit $ 1 / kValue 32)
+
+dfLogErr :: forall dom iAlpha fAlpha
+         .  ( HiddenClockResetEnable dom
             , KnownNat iAlpha, KnownNat fAlpha
-            , NonZeroLog10 power
-            , 1 <= power)
-         => Signal dom (UFixed (BitsLog10 power) fRef) -> Signal dom (UFixed iAlpha fAlpha)
-         -> DataFlow dom Bool Bool (Unsigned power) (SFixed (BitsLog10 power + 1) fRef)
-dfLogErr ref alpha = gatedToDF (\en x -> liftA3 f ref alpha x)
-  where f ref alpha x = let logX = toSF $ lutLog10 (SNat :: SNat fRef) x
-                            dif  = toSF ref - logX
-                            err  = (toSF $ resizeF alpha) * dif
-                        in err
+            )
+         => Signal dom (UFixed 3 22) -> Signal dom (UFixed iAlpha fAlpha)
+         -> DataFlow dom Bool Bool (Unsigned 26) (SFixed 4 22)
+dfLogErr ref alpha = gatedVToDF (\en x -> f en ref alpha x)
+  where f en ref alpha x =
+          let logX = log10 paramsVec eLn2sVec x
+              dif  = ((resizeF . toSF) <$> ref) - logX
+              err  = ((toSF . resizeF) <$> alpha) * dif
+              v = last $ iterate d33 (register False) en
+          in (v, err)
 
 {- Wee accumulator -}
 
@@ -120,30 +112,27 @@ dfAccum = gatedVToDF f
 
 {- Antilog / exponential conversion -}
 
-dfAntilog :: forall dom i f f'
-          .  ( HiddenClockResetEnable dom, KnownNat i, KnownNat f, KnownNat f'
-             , 1<= i
-             , f' <= BitsExp10 i )
-          => DataFlow dom Bool Bool (UFixed i f) (UFixed (BitsExp10 i - f') f')
-dfAntilog = pureDF (uf (SNat :: SNat f') . lutAntilog10)
+dfAntilog :: forall dom f
+          .  ( HiddenClockResetEnable dom, KnownNat f, f<=50)
+          => DataFlow dom Bool Bool (UFixed 3 22) (UFixed (50-f) f)
+dfAntilog = gatedVToDF (\en x -> f en x)
+  where f en x =
+          let v = last $ iterate d33 (register False) en
+              y = resizeF <$> pow10 paramsVec kScaling eLn2sVec (resizeF <$> x) :: Signal dom (UFixed 24 26) -- This is probably a pain point!
+          in (v, uf (SNat :: SNat f) . unUF <$> y)
 
 {- Constructing the AGC loop -}
 
 dfForward
-  :: ( HiddenClockResetEnable dom
-     , KnownNat sig, KnownNat fRef, KnownNat window
-     , KnownNat iAlpha, KnownNat fAlpha, KnownNat fGain
-     , NonZeroLog10 sig
-     , 1  <= sig
-     , fGain <= BitsExp10 (BitsLog10 sig) )
-  => Signal dom (Unsigned window)
-  -> Signal dom (UFixed (BitsLog10 sig) fRef)
-  -> Signal dom (UFixed iAlpha fAlpha)
-  -> DataFlow dom Bool Bool (Signed sig, Signed sig)
-                            (UFixed (BitsExp10 (BitsLog10 sig) - fGain) fGain)
+  :: ( HiddenClockResetEnable dom, KnownNat fGain, fGain<=50 )
+  => Signal dom (Unsigned 5)
+  -> Signal dom (UFixed 3 12)
+  -> Signal dom (UFixed 1 6)
+  -> DataFlow dom Bool Bool (Signed 26, Signed 26)
+                            (UFixed (50 - fGain) fGain)
 dfForward window ref alpha = dfPowDetect
                              `seqDF` dfIntgDump window
-                             `seqDF` dfLogErr ref alpha
+                             `seqDF` dfLogErr (resizeF <$> ref) alpha
                              `seqDF` dfAccum
                              `seqDF` dfAntilog
 
@@ -151,32 +140,43 @@ dfGainStage :: forall dom sig iGain fGain
             . (HiddenClockResetEnable dom, KnownNat sig, KnownNat iGain, KnownNat fGain)
             => Signal dom Bool
             -> DataFlow dom Bool Bool ((Signed sig, Signed sig), UFixed iGain fGain)
-                                      ((UFixed iGain fGain, (Signed sig, Signed sig)), (Signed sig, Signed sig))
+                                      ((UFixed iGain fGain, (Signed sig, Signed sig)), (Signed (sig+iGain), Signed (sig+iGain)))
 dfGainStage en = gatedToDF (\_ x -> liftA2 f en x)
-  where preMul x g = unSF (resizeF $ sf d0 x `mul` toSF g :: SFixed sig 0)
+  where preMul x g = sf d0 x `mul` toSF g
         f en ((i,q),g) = let g' = if en then g else 1
                              i' = preMul i g'
                              q' = preMul q g'
-                         in ((g', (i', q')), (i', q'))
+                             iint = unSF (resizeF i' :: SFixed (sig+iGain) 0)
+                             qint = unSF (resizeF q' :: SFixed (sig+iGain) 0)
+                             --iext = unSF (resizeF i' :: SFixed (sig) 0)
+                             --qext = unSF (resizeF q' :: SFixed (sig) 0)
+                             iext = unSF (resizeF (shiftSF (SNat :: SNat iGain) $ sf d0 iint) :: SFixed sig 0)
+                             qext = unSF (resizeF (shiftSF (SNat :: SNat iGain) $ sf d0 qint) :: SFixed sig 0)
+                         in ((g', (iext, qext)), (iint, qint))
+
+shrink :: (KnownNat a, KnownNat b, KnownNat i, KnownNat f) => SNat b -> SNat i -> SNat f -> UFixed a b -> UFixed i f
+shrink _ _ _ = resizeF
 
 dfAgc
-  :: ( HiddenClockResetEnable dom
-     , KnownNat sig, KnownNat fRef, KnownNat window
-     , KnownNat iAlpha, KnownNat fAlpha, KnownNat fGain
-     , NonZeroLog10 sig
-     , 1  <= sig
-     , fGain <= BitsExp10 (BitsLog10 sig) )
-  => Signal dom (Unsigned window)
-  -> Signal dom (UFixed (BitsLog10 sig) fRef)
-  -> Signal dom (UFixed iAlpha fAlpha)
+  :: forall dom.
+  ( HiddenClockResetEnable dom
+  )
+  => Signal dom (Unsigned 5)
+  -> Signal dom (UFixed 3 12)
+  -> Signal dom (UFixed 1 6)
   -> Signal dom Bool
-  -> DataFlow dom Bool Bool (Signed sig, Signed sig)
-                            (UFixed (BitsExp10 (BitsLog10 sig) - fGain) fGain
-                            ,(Signed sig, Signed sig))
+  -> DataFlow dom Bool Bool (Signed 16, Signed 16)
+                            (UFixed 10 40
+                            ,(Signed 16, Signed 16))
 dfAgc window ref alpha en = feedbackLoop logic `seqDF` outReg
   where feedbackLoop ip = hideClockResetEnable loopDF d2 Nil ip
-        logic           = (idDF `parDF` dfForward window ref alpha) `seqDF` lockStep `seqDF` dfGainStage en `seqDF` stepLock
+        logic           = (idDF `parDF` fwd) `seqDF` lockStep `seqDF` amp `seqDF` stepLock
         outReg          = hideClockResetEnable fifoDF d2 ((def,(def,def)):>(def,(def,def)):>Nil)
+        fwd = dfForward window ref alpha `seqDF` pureDF (shrink (SNat :: SNat 10)
+                                                                (SNat :: SNat 10)
+                                                                (SNat :: SNat 40))
+        amp = dfGainStage en
+
 
 {- Top level -}
 
@@ -224,7 +224,7 @@ topEntity ::
   -> Signal XilDom Bit
   -> Signal XilDom Bit
   -> Signal XilDom Bit
-  -> Signal XilDom (Bit, Bit, UFixed 14 13, Bit, Signed 16, Bit, Signed 16, Bit)
+  -> Signal XilDom (Bit, Bit, UFixed 10 40, Bit, Signed 16, Bit, Signed 16, Bit)
 topEntity clk rst en window ref alpha i inIV q inQV outGR outIR outQR =
   let (g,(i',q'))             = (\(a,b)->(a,unbundle b)) $ unbundle outDatas
       (outGV, (outIV, outQV)) = (\(a,b)->(a,unbundle b)) $ unbundle outVs
@@ -236,7 +236,3 @@ topEntity clk rst en window ref alpha i inIV q inQV outGR outIR outQR =
                                    (df $ lockStep `seqDF` hideClockResetEnable fifoDF d2 Nil `seqDF` dfAgc window (register 0 ref) (register 0 alpha) (register False (bitToBool <$> en)) `seqDF` hideClockResetEnable fifoDF d2 Nil `seqDF` stepLock `seqDF` secondDF stepLock)
                                 clk rst (toEnable $ pure True)
   in bundle (boolToBit <$> inIR, boolToBit <$> inQR, g, boolToBit <$> outGV, i', boolToBit <$> outIV, q', boolToBit <$> outQV)
-
--- TODO Make wrapper project with loopback
--- TODO Sketch out ipywidget controlling alpha, ref, window, [input type, length, amplitudes]
--- TODO see if we can avoid saturation issues

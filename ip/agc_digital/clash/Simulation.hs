@@ -146,15 +146,16 @@ isSteady n ref percent = (<=n) . maximum . map length . filter (\a->False == a!!
 -- logarithmic distance when we've clipped... should I be using our multiplied input wordlength instead of 16? Yeah, probably.
 
 simOutPower g1 g2 n =
-  let ref = 4.0 :: UFixed 3 12
+  let ref = 0.01 :: UFixed 3 12
       alpha = 1.0 :: UFixed 1 6
       window = 7 :: Unsigned 5
       inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
-      fLog = SNat :: SNat 8
-      fGain = SNat :: SNat 13
+      fLog = SNat :: SNat 12
+      fGain = SNat :: SNat 40
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
-      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 14 13, (Signed 16, Signed 16)), Bool, Bool)
-      outs = drop 1 . take (10000 + rec_time*(2^window)) $ simulate @System ip inputSig
+      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 40, (Signed 16, Signed 16)), Bool, Bool)
+      outs = drop 1 . take (10000 + rec_time*(2^window))
+             $ simulate @System ip inputSig
       out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
       out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain
       out_pow_block = map ((/(2^window)) . sum) $ splitInto (2^window) out_pow
