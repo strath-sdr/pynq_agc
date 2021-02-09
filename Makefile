@@ -1,6 +1,7 @@
 IP_AAGC = ip/agc_analogue/ip/component.xml
 IP_DAGC = ip/agc_digital/ip/component.xml
-Z2_LOOPBACK = boards/Pynq-Z2/agc_loopback.bit
+Z2_LOOPBACK = boards/Pynq-Z2/bin/agc_loopback.bit
+ZCU111_LOOPBACK = boards/ZCU111/bin/agc_loopback.bit
 
 all: $(IP_AAGC) $(IP_DAGC) $(Z2_LOOPBACK) $(ZCU111_LOOPBACK)
 
