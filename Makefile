@@ -22,4 +22,4 @@ $(ZCU111_LOOPBACK): $(IP_DAGC)
 	make -C boards/ZCU111
 
 clean:
-	make -C ip/agc_analogue clean; make -C ip/agc_digital clean; make -C boards/Pynq-Z2 clean; make -C boards/ZCU111 clean;
+	rm $(TARBALL); make -C ip/agc_analogue clean; make -C ip/agc_digital clean; make -C boards/Pynq-Z2 clean; make -C boards/ZCU111 clean;

@@ -10,7 +10,7 @@ repo_board_folder = f'boards/{board}'
 repo_notebook_folder = f'notebooks'
 board_notebooks_dir = os.environ['PYNQ_JUPYTER_NOTEBOOKS']
 package_name = 'pynq_agc'
-hw_data_files = []
+hw_data_files = ['assets/style.css']
 
 # check whether board is supported
 def check_env():

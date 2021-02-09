@@ -1,4 +1,4 @@
-from AgcDashView import view_template
+from .AgcDashView import view_template
 import dash
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
@@ -214,4 +214,4 @@ class AgcDashController():
 
     def show(self,debug=False):
         mode = 'external' if debug else 'inline'
-        return self.app.run_server(mode=mode, host=ifaddresses('eth0')[AF_INET][0]['addr'], height=810)
+        return self.app.run_server(mode=mode, host=ifaddresses('eth0')[AF_INET][0]['addr'], height=830)

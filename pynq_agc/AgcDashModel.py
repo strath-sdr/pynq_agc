@@ -1,5 +1,6 @@
 import numpy as np
 import random as rnd
+import os
 from pynq import Overlay,allocate
 
 # Model's pure functions
@@ -69,7 +70,8 @@ class AgcDashModel():
         self._t           = np.array([i/fs for i in range(N)])
 
         # Overlay config
-        ol = Overlay("agc_loopback.bit")
+        bit_name  = os.path.dirname(__file__) + '/agc_loopback.bit'
+        ol = Overlay(bit_name)
         self._ol = ol
         
         #Avoid PYNQ's get_attr overhead by aliasing IPs
