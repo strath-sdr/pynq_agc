@@ -34,7 +34,7 @@ sfToDouble u = fromIntegral (unSF u) / (snatToNum $ pow2SNat (SNat :: SNat m))
 paramsVec :: Vec 32 (Int, SFixed 5 32)
 paramsVec = $(listToVecTH $ take 32 (zip shiftSequence arctanhs))
 
-eLn2sVec :: Vec 27 (UFixed 5 32)
+eLn2sVec :: Vec 27 (SFixed 6 32)
 eLn2sVec = $(listToVecTH $ take 27 eLn2s)
 
 kScaling :: SFixed 5 32
@@ -69,28 +69,28 @@ prop_log10 = forAll (suchThat arbitrary (\x -> x>1)) prop
 
 prop_exp_norm = forAll (suchThat arbitrary (\x -> abs x < 0.69)) prop
   where
-  prop :: UFixed 0 32 -> Bool
-  prop x = let expt = exp (ufToDouble x)
+  prop :: SFixed 1 32 -> Bool
+  prop x = let expt = exp (sfToDouble x)
                act = ufToDouble (simulate @System (expNorm paramsVec kScaling) (repeat x) !! 33)
                percent_margin = 0.01
                error = max expt act - min expt act
            in error / abs expt <= percent_margin / 100
 
-prop_exp_scaled = forAll (suchThat arbitrary (\x -> x<16)) prop
+prop_exp_scaled = forAll (suchThat arbitrary (\x -> abs x<11)) prop
   where
-  prop :: UFixed 5 22 -> Bool
-  prop x = let expt = exp (ufToDouble x)
+  prop :: SFixed 6 22 -> Bool
+  prop x = let expt = exp (sfToDouble x)
                act = ufToDouble (simulate @System (expScaled paramsVec kScaling eLn2sVec) (repeat x) !! 33)
-               percent_margin = 0.1
+               percent_margin = 3
                error = max expt act - min expt act
            in error / abs expt <= percent_margin / 100
 
-prop_pow10 = forAll (suchThat arbitrary (\x -> x<6)) prop
+prop_pow10 = forAll (suchThat arbitrary (\x -> abs x<4.8)) prop
   where
-  prop :: UFixed 4 22 -> Bool
-  prop x = let expt = 10 ** (ufToDouble x)
+  prop :: SFixed 5 22 -> Bool
+  prop x = let expt = 10 ** (sfToDouble x)
                act = ufToDouble (simulate @System (pow10 paramsVec kScaling eLn2sVec) (repeat x) !! 33)
-               percent_margin = 1
+               percent_margin = 3
                error = max expt act - min expt act
            in error / abs expt <= percent_margin / 100
 

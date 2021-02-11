@@ -10,7 +10,9 @@ import Clash.Prelude (
   createDomain, vInitBehavior, vName, vSystem, InitBehavior(..), Signal,
   simulate, System,
   shiftR,
-  sf, bundle, df
+  register,
+  sf, bundle, df,
+  fLitR, KnownNat
   )
 
 import Prelude
@@ -36,6 +38,62 @@ import Test.QuickCheck
 
 import Statistics.Sample
 import qualified Data.Vector.Unboxed as V
+--import Data.Fixed
+
+--dec :: Int -> [a] -> [a]
+--dec n [] = []
+--dec n (x : xs) = x : dec n (drop (n-1) xs)
+
+interp :: Int -> [a] -> [a]
+interp n [] = []
+interp n (x : xs) = replicate n x ++ interp n xs
+
+chunks :: Int -> [a] -> [[a]]
+chunks n [] = []
+chunks n xs = take n xs : chunks n (drop n xs)
+
+quantiseS :: forall i f . (KnownNat i, KnownNat f) => SNat i -> SNat f -> Double -> Double
+quantiseS _ _ x = sfToDouble (fLitR x :: SFixed i f)
+
+quantiseU :: forall i f . (KnownNat i, KnownNat f) => SNat i -> SNat f -> Double -> Double
+quantiseU _ _ x = ufToDouble (fLitR x :: UFixed i f)
+
+d0 = SNat :: SNat 0
+
+iSig   = SNat :: SNat 26
+iGain  = SNat :: SNat 10
+fGain  = SNat :: SNat 10
+iAlpha = SNat :: SNat 1
+fAlpha = SNat :: SNat 6
+iRef   = SNat :: SNat 3
+fRef   = SNat :: SNat 12
+iLog   = SNat :: SNat 4
+fLog   = SNat :: SNat 22
+
+simAgc :: Double -> Double -> Double -> [(Double, Double)] -> [(Double, Double,Double)]
+simAgc window ref alpha iqs =
+  let window' = 2**window
+      powers blk = map (\(i,q)-> quantiseU iSig d0 . sqrt $ i^2 + q^2) blk
+      smooth blk = quantiseU iSig d0 $ (/window') $ sum  blk
+      alg state x = quantiseS iLog fLog (
+                      (quantiseS iLog fLog state) -
+                      ((quantiseS iLog fLog $ logBase 10 (smooth $ powers x)) - (quantiseU iRef fRef ref)) *
+                      (quantiseU iAlpha fAlpha alpha))
+      gains = scanl (\state x ->
+                quantiseS iLog fLog $
+                alg state (map (\(i,q)->(
+                  quantiseS iSig d0 $ (i*) $ quantiseU iGain fGain $ 10**state,
+                  quantiseS iSig d0 $ (q*) $ quantiseU iGain fGain $ 10**state)
+                  ) x)
+              ) 0
+              (init $ chunks (round window') iqs)
+  in zipWith (\(i,q) s -> let g = quantiseU iGain fGain $ 10**s
+                          in (g, quantiseS iSig d0 $ i*g, quantiseS iSig d0 $ q*g))
+     iqs (interp (round window') gains)
+
+
+-- My floating point simulation shows us that we _should_ be ok with our
+-- approach... make some tests to verify the log and exp DF behaviour.
 
 createDomain vSystem{vName="SyncDefined", vInitBehavior=Defined}
 
@@ -142,18 +200,21 @@ splitInto n xs = let (a,b) = splitAt n xs
 isSteady :: Int -> Double -> Double -> [Double] -> Bool
 isSteady n ref percent = (<=n) . maximum . map length . filter (\a->False == a!!0) . group . map (\x->abs (x-ref)/ref < (percent/100))
 
--- TODO how do we deal with quantisation issues? We don't get a good idea of
--- logarithmic distance when we've clipped... should I be using our multiplied input wordlength instead of 16? Yeah, probably.
+--simDfLogErr ref alpha x =
+--  simulate @System (
+--    bundle $ df (\x-> dfLogErr (pure ref) (pure alpha)) x (register True (pure False)) (pure True) :: Signal System (SFixed 4 22, Bool, Bool)
+--    )
+--  (repeat x) :: [(SFixed 4 22, Bool, Bool)]
 
 simOutPower g1 g2 n =
-  let ref = 0.01 :: UFixed 3 12
+  let ref = 4.0 :: UFixed 3 12
       alpha = 1.0 :: UFixed 1 6
-      window = 7 :: Unsigned 5
+      window = 9 :: Unsigned 5
       inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
-      fLog = SNat :: SNat 12
-      fGain = SNat :: SNat 40
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
-      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 40, (Signed 16, Signed 16)), Bool, Bool)
+      --out_gain = take 15000 $ simAgc (fromIntegral window) (ufToDouble ref) (ufToDouble alpha) (map (\(i,q)->(fromIntegral i, fromIntegral q)) inputSig)
+      --out_pow = map (\(_,i,q)-> sqrt $ (i)**2 + (q)**2) out_gain
+      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 10, (Signed 16, Signed 16)), Bool, Bool)
       outs = drop 1 . take (10000 + rec_time*(2^window))
              $ simulate @System ip inputSig
       out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
@@ -189,6 +250,9 @@ showTest g1 g2 n =
   tData = map (zip [1..]) $ [map (\(_,x,_)->fromIntegral x) sim
                             ,map (\(_,_,x)->fromIntegral x) sim
                             ,map (\(x,_,_)->ufToDouble x)   sim
+                            --[map (\(_,x,_)-> x) sim
+                            --,map (\(_,_,x)-> x) sim
+                            --,map (\(x,_,_)->x)   sim
                             ] :: [[(Double, Double)]]
   ctrlData = [tData !! 2, tData !! 2]
   simInputTrace = map (zip [(1::Double)..] . map (sfToDouble . sf (SNat :: SNat 0)))  [map fst simInput, map snd simInput]
@@ -196,15 +260,15 @@ showTest g1 g2 n =
 corr :: [(Double, Double)] -> Double
 corr = correlation . V.fromList
 
-prop_corrTest g1 g2 n =
-  let (_, outsig, _, _, recTime, _) = simOutPower g1 g2 n
-      insig = steppedInput (InGain 0.3125) (InGain 0.3125) (InStepTime 0)
-      inI  = map (fromIntegral . fst) insig
-      inQ  = map (fromIntegral . snd) insig
-      outI = map (fromIntegral . (\(_,i,_)->i)) outsig
-      outQ = map (fromIntegral . (\(_,_,q)->q)) outsig
-      correlation = corr $ zip (drop recTime inI) (drop recTime outI)
-  in property $ correlation > 0.9
+--prop_corrTest g1 g2 n =
+--  let (_, outsig, _, _, recTime, _) = simOutPower g1 g2 n
+--      insig = steppedInput (InGain 0.3125) (InGain 0.3125) (InStepTime 0)
+--      inI  = map (fromIntegral . fst) insig
+--      inQ  = map (fromIntegral . snd) insig
+--      outI = map (fromIntegral . (\(_,i,_)->i)) outsig
+--      outQ = map (fromIntegral . (\(_,_,q)->q)) outsig
+--      correlation = corr $ zip (drop recTime inI) (drop recTime outI)
+--  in property $ correlation > 0.9
 
 bl10 n = fromIntegral . ceiling $ logBase 2 (logBase 10 (2**n))
 be10 n = fromIntegral . ceiling $ logBase 2 (10 ** (2**n))
