@@ -11,8 +11,6 @@ set_property -name "target_language" -value "VHDL" -objects $obj
 
 # Add sources
 add_files { clash/vhdl/ hdl/ }
-add_files { clash/vhdl/DigitalAGC/digitalAgc/loglut.mem }
-add_files { clash/vhdl/DigitalAGC/digitalAgc/antiloglut.mem }
 update_compile_order -fileset sources_1
 
 # Build IP

@@ -33,8 +33,6 @@ update_compile_order -fileset sources_1
 
 # Make a bitstream!
 launch_runs impl_1 -to_step write_bitstream -jobs 4
-# Quickly patch in my .mem files before AGC is compiled (sorry)
-exec patch_mem.sh
 wait_on_run impl_1
 
 # Export files (including HWH for PYNQ)
