@@ -157,7 +157,7 @@ architecture arch_imp of agc_axi_wrapper is
          m_q_axis_tready : in std_logic;
          s_i_axis_tready : out std_logic;
          s_q_axis_tready : out std_logic;
-         m_g_axis_tdata  : out unsigned(26 downto 0);
+         m_g_axis_tdata  : out unsigned(24 downto 0);
          m_g_axis_tvalid : out std_logic;
          m_i_axis_tdata  : out signed(15 downto 0);
          m_i_axis_tvalid : out std_logic;
@@ -485,7 +485,7 @@ begin
 
         s_i_axis_tready => s_i_axis_tready,
         s_q_axis_tready => s_q_axis_tready,
-        std_logic_vector(m_g_axis_tdata) => m_g_axis_tdata(26 downto 0),
+        std_logic_vector(m_g_axis_tdata) => m_g_axis_tdata(24 downto 0),
         m_g_axis_tvalid => m_g_axis_tvalid,
         std_logic_vector(m_i_axis_tdata)  => m_i_axis_tdata,
         m_i_axis_tvalid => m_i_axis_tvalid,

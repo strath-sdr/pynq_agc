@@ -7,4 +7,5 @@ src/clash/*.dyn*
 src/clash/verilog
 src/clash/vhdl
 *.xopp~
-notebook/.ipynb_checkpoints
+notebooks/.ipynb_checkpoints
+pynq_agc.tar.gz

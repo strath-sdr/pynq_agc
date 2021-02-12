@@ -214,7 +214,7 @@ simOutPower g1 g2 n =
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
       --out_gain = take 15000 $ simAgc (fromIntegral window) (ufToDouble ref) (ufToDouble alpha) (map (\(i,q)->(fromIntegral i, fromIntegral q)) inputSig)
       --out_pow = map (\(_,i,q)-> sqrt $ (i)**2 + (q)**2) out_gain
-      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 10, (Signed 16, Signed 16)), Bool, Bool)
+      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 15, (Signed 16, Signed 16)), Bool, Bool)
       outs = drop 1 . take (10000 + rec_time*(2^window))
              $ simulate @System ip inputSig
       out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
@@ -229,7 +229,7 @@ prop_OutPower g1 g2 (InStepTime n) =
   in property . isSteady rec_time expected_pow 1 $ drop (ceiling $ (fromIntegral n) / 2**7) out_pow_block
 
 showTest g1 g2 n =
-    renderToFile "/tmp/clash_sim.html" $ doctypehtml_ $ do
+    renderToFile "/tmp/clash/sim.html" $ doctypehtml_ $ do
     head_ $ do meta_ [charset_ "utf-8"]
                plotlyCDN
                reloadCDN

@@ -121,7 +121,7 @@ log10 :: forall dom n . (HiddenClockResetEnable dom)
          -> Signal dom (Unsigned 26)
          -> Signal dom (SFixed 4 22)
 log10 paramsVec eLn2sVec x =
-  let lnX = resizeF <$> lnScaled paramsVec eLn2sVec x :: Signal dom (SFixed 6 21)
+  let lnX = resizeF <$> lnScaled paramsVec eLn2sVec x :: Signal dom (SFixed 6 19)
       scaling = $$(fLit $ 1 / (log 10)) :: SFixed 7 11
       log10X = mul scaling <$> lnX
   in resizeF <$> log10X
@@ -162,10 +162,10 @@ pow10 :: forall n dom . (HiddenClockResetEnable dom)
          => Vec n (Int, SFixed 5 32)
          -> SFixed 5 32
          -> Vec 27 (SFixed 6 32)
-         -> Signal dom (SFixed 5 22)
+         -> Signal dom (SFixed 5 20)
          -> Signal dom (UFixed 24 32) --TODO tighten bits
 pow10 args init eLn2s u =
-  let scaling = $$(fLit $ log 10) :: SFixed 3 16
+  let scaling = $$(fLit $ log 10) :: SFixed 3 15
       x' = resizeF <$> mul scaling <$> u
       expX = resizeF <$> expScaled args init eLn2s x'
   in expX

@@ -98,9 +98,9 @@ dfLogErr ref alpha = liftDF (f ref alpha)
   where f ref alpha x iV oR =
           let x' = regEn 0 iV x
               logX = log10 paramsVec eLn2sVec x'
-              dif  = logX - ((resizeF . toSF) <$> ref)
-              err  = ((toSF . resizeF) <$> alpha) * dif
-              oV = last $ iterate d34 (register False) iV
+              dif  = register 0 $ logX - ((resizeF . toSF) <$> ref)
+              err  = register 0 $ ((toSF . resizeF) <$> alpha) * dif
+              oV = last $ iterate d36 (register False) iV
           in (err, oV, oR)
 --  where f ref alpha x iV oR =
 --          let logX = (\x -> fLitR (logBase 10 (fromIntegral x))) <$> x :: Signal dom (SFixed 4 22)
@@ -125,8 +125,8 @@ dfAntilog :: forall dom
 dfAntilog = liftDF f
   where f x iV oR =
           let x' = regEn 0 iV x
-              oV = last $ iterate d34 (register False) iV
-              y = resizeF <$> pow10 paramsVec kScaling eLn2sVec (resizeF <$> x') :: Signal dom (UFixed 24 26)
+              oV = last $ iterate d35 (register False) iV
+              y = register 0 $ resizeF <$> pow10 paramsVec kScaling eLn2sVec (resizeF <$> x') :: Signal dom (UFixed 24 26)
           in (y, oV, oR)
 --          let y = (\x -> fLitR $ 10 ** (sfToDouble x)) <$> x :: Signal dom (UFixed 24 26) -- This is probably a pain point!
 --          in (y, iV, oR)
@@ -149,8 +149,8 @@ dfForward window ref alpha = dfPowDetect
 dfGainStage :: forall dom sig
             . (HiddenClockResetEnable dom, KnownNat sig)
             => Signal dom Bool
-            -> DataFlow dom Bool Bool ((Signed sig, Signed sig), UFixed 10 10)
-                                      ((UFixed 10 10, (Signed (sig), Signed (sig))), (Signed (sig+10), Signed (sig+10)))
+            -> DataFlow dom Bool Bool ((Signed sig, Signed sig), UFixed 10 15)
+                                      ((UFixed 10 15, (Signed (sig), Signed (sig))), (Signed (sig+10), Signed (sig+10)))
 dfGainStage en = gatedToDF (\_ x -> liftA2 f en x)
   where preMul x g = sf d0 x `mul` toSF g
         f en ((i,q),g) = let g' = if en then g else 1
@@ -174,7 +174,7 @@ dfAgc
   -> Signal dom (UFixed 1 6)
   -> Signal dom Bool
   -> DataFlow dom Bool Bool (Signed 16, Signed 16)
-                            (UFixed 10 10
+                            (UFixed 10 15
                             ,(Signed 16, Signed 16))
 dfAgc window ref alpha en = feedbackLoop logic `seqDF` outReg
   where feedbackLoop ip = hideClockResetEnable loopDF d2 Nil ip
@@ -182,7 +182,7 @@ dfAgc window ref alpha en = feedbackLoop logic `seqDF` outReg
         outReg          = hideClockResetEnable fifoDF d2 ((def,(def,def)):>(def,(def,def)):>Nil)
         fwd = dfForward window ref alpha `seqDF` pureDF (shrink (SNat :: SNat 26)
                                                                 (SNat :: SNat 10)
-                                                                (SNat :: SNat 10))
+                                                                (SNat :: SNat 15))
         amp = dfGainStage en
 
 
@@ -232,7 +232,7 @@ topEntity ::
   -> Signal XilDom Bit
   -> Signal XilDom Bit
   -> Signal XilDom Bit
-  -> Signal XilDom (Bit, Bit, UFixed 10 10, Bit, Signed 16, Bit, Signed 16, Bit)
+  -> Signal XilDom (Bit, Bit, UFixed 10 15, Bit, Signed 16, Bit, Signed 16, Bit)
 topEntity clk rst en window ref alpha i inIV q inQV outGR outIR outQR =
   let (g,(i',q'))             = (\(a,b)->(a,unbundle b)) $ unbundle outDatas
       (outGV, (outIV, outQV)) = (\(a,b)->(a,unbundle b)) $ unbundle outVs
