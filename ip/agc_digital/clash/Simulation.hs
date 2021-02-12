@@ -206,16 +206,37 @@ isSteady n ref percent = (<=n) . maximum . map length . filter (\a->False == a!!
 --    )
 --  (repeat x) :: [(SFixed 4 22, Bool, Bool)]
 
+{--
+
+1) Can I reproduce the variation in simulation? Maybe generating a repeating pattern with a non-integer multiple of the window size
+
+2) Does this also appear in the floating point simulation, because that doesn't have the delays from cordic stuff.
+
+If no to 1) maybe it's to do with my DataFlow implementation?
+
+I'm seeing spikes for 32 cycles in the output. Why is this?! We should only be seeing 512 sample changes because of the window of 2^9
+
+
+I've fixed it... Two things now:
+
+  1) Are the log10 and pow10 df units *really* returning consistient values?
+
+  2) We can add a feature to set the error state! We can use that in the python instead of feeding it extra samples. Is there anything else we should flush? Maybe just pad with 32ish samples. Wait. isn't that just the reset functionality that should already exist? I've just mapped the areset pin to axi reg 0, bit 1.
+
+--}
+
 simOutPower g1 g2 n =
   let ref = 4.0 :: UFixed 3 12
       alpha = 1.0 :: UFixed 1 6
       window = 9 :: Unsigned 5
-      inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
+      --inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
+      inputSig = take (5*6144) . cycle . take (6144) $ steppedInput g1 g2 n
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
       --out_gain = take 15000 $ simAgc (fromIntegral window) (ufToDouble ref) (ufToDouble alpha) (map (\(i,q)->(fromIntegral i, fromIntegral q)) inputSig)
       --out_pow = map (\(_,i,q)-> sqrt $ (i)**2 + (q)**2) out_gain
       ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 15, (Signed 16, Signed 16)), Bool, Bool)
-      outs = drop 1 . take (10000 + rec_time*(2^window))
+      --outs = drop 1 . take (10000 + rec_time*(2^window))
+      outs = drop 1 . take (5*6144)
              $ simulate @System ip inputSig
       out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
       out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain

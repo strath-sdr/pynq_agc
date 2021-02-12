@@ -122,10 +122,11 @@ class AgcDashModel():
         ADDR_WIN   = 4
         ADDR_REF   = 8
         ADDR_ALPHA = 12
-        self._agc.write(ADDR_EN, en)
+        self._agc.write(ADDR_EN, en + 0)
         self._agc.write(ADDR_WIN, int(win))
         self._agc.write(ADDR_REF, int(np.log10(ref*2**15)*2**12))
         self._agc.write(ADDR_ALPHA, int(alpha*2**6))
+        self._agc.write(ADDR_EN, en + 2)
 
     def agc_loopback(self, in_i, in_q):
 

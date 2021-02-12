@@ -467,7 +467,7 @@ begin
 	-- Add user logic here
     IP_CORE: digitalAgc port map (
         clk => CLK,
-        aresetn => ARESETN,
+        aresetn => slv_reg0(1),
         en  => slv_reg0(0),
         -- AXI signals
         window => unsigned(slv_reg1(4 downto 0)),

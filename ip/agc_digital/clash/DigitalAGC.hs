@@ -115,7 +115,7 @@ dfAccum :: (HiddenClockResetEnable dom, KnownNat i, KnownNat f)
 dfAccum = gatedVToDF f
   where f en err = let x' = liftA2 boundedSub x err
                        x  = regEn 0 en x'
-                   in (pure True, x)
+                   in (register False en, x)
 
 {- Antilog / exponential conversion -}
 
@@ -125,11 +125,17 @@ dfAntilog :: forall dom
 dfAntilog = liftDF f
   where f x iV oR =
           let x' = regEn 0 iV x
-              oV = last $ iterate d35 (register False) iV
+              oV = last $ iterate d34 (register False) iV
               y = register 0 $ resizeF <$> pow10 paramsVec kScaling eLn2sVec (resizeF <$> x') :: Signal dom (UFixed 24 26)
           in (y, oV, oR)
 --          let y = (\x -> fLitR $ 10 ** (sfToDouble x)) <$> x :: Signal dom (UFixed 24 26) -- This is probably a pain point!
 --          in (y, iV, oR)
+
+dfSampleAndHold = liftDF f
+  where f x iV oR =
+          let y = regEn 0 (iV .&&. oR) x
+              oV = register False iV
+          in (y, pure True, pure True)
 
 {- Constructing the AGC loop -}
 
@@ -145,6 +151,7 @@ dfForward window ref alpha = dfPowDetect
                              `seqDF` dfLogErr (resizeF <$> ref) alpha
                              `seqDF` dfAccum
                              `seqDF` dfAntilog
+                             `seqDF` dfSampleAndHold
 
 dfGainStage :: forall dom sig
             . (HiddenClockResetEnable dom, KnownNat sig)
