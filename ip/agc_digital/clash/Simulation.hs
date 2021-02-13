@@ -228,15 +228,15 @@ I've fixed it... Two things now:
 simOutPower g1 g2 n =
   let ref = 4.0 :: UFixed 3 12
       alpha = 1.0 :: UFixed 1 6
-      window = 9 :: Unsigned 5
+      window = 7 :: Unsigned 5
       --inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
-      inputSig = take (5*6144) . cycle . take (6144) $ steppedInput g1 g2 n
+      inputSig = take (8000*4) . cycle . take 8000 $ steppedInput g1 g2 n
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
       --out_gain = take 15000 $ simAgc (fromIntegral window) (ufToDouble ref) (ufToDouble alpha) (map (\(i,q)->(fromIntegral i, fromIntegral q)) inputSig)
       --out_pow = map (\(_,i,q)-> sqrt $ (i)**2 + (q)**2) out_gain
       ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 15, (Signed 16, Signed 16)), Bool, Bool)
       --outs = drop 1 . take (10000 + rec_time*(2^window))
-      outs = drop 1 . take (5*6144)
+      outs = drop 1 . take (8000*4)
              $ simulate @System ip inputSig
       out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
       out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain

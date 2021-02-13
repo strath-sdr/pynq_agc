@@ -96,7 +96,8 @@ lnNorm :: HiddenClockResetEnable dom
        -> Signal dom (UFixed 0 32)
        -> Signal dom (SFixed 5 32)
 lnNorm args u = fmap (\(_,_,z)->shiftL z 1) $
-                foldl (\x params -> delay (0,0,0) $ fmap ((uncurry hypStepVectoring) params) x)
+                foldl (\x params -> delay (0,0,0) $
+                                    fmap ((uncurry hypStepVectoring) params) x)
                 (bundle (s+1, s-1, 0))
                 args
   where
@@ -133,7 +134,8 @@ expNorm :: HiddenClockResetEnable dom
        -> Signal dom (SFixed 1 32)
        -> Signal dom (UFixed 4 32)
 expNorm args init u = fmap (\(x,_,_)->toUF x) $
-                      foldl (\x params -> delay (0,0,0) $ fmap ((uncurry hypStepRotation) params) x)
+                      foldl (\x params -> delay (0,0,0) $
+                                          fmap ((uncurry hypStepRotation) params) x)
                       (bundle (pure init, pure init, s))
                       args
   where
