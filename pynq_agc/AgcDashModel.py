@@ -1,6 +1,7 @@
 import numpy as np
 import random as rnd
 import os
+import time
 from pynq import Overlay,allocate
 
 # Model's pure functions
@@ -122,17 +123,19 @@ class AgcDashModel():
         ADDR_WIN   = 4
         ADDR_REF   = 8
         ADDR_ALPHA = 12
-        self._agc.write(ADDR_EN, en + 0)
+        #self._agc.write(ADDR_EN, en + 0)
+        #time.sleep(0.01)
+        self._agc.write(ADDR_EN, en + 2)
+        #time.sleep(0.01)
         self._agc.write(ADDR_WIN, int(win))
         self._agc.write(ADDR_REF, int(np.log10(ref*2**15)*2**12))
         self._agc.write(ADDR_ALPHA, int(alpha*2**6))
-        self._agc.write(ADDR_EN, en + 2)
 
     def agc_loopback(self, in_i, in_q):
 
         for i in range(self._padding):
-            self._buf_in_i[i] = np.rint(in_i[self._padding-i]*(2**15-1))
-            self._buf_in_q[i] = np.rint(in_q[self._padding-i]*(2**15-1))
+            self._buf_in_i[i] = np.rint(in_i[self._padding-i-1]*(2**15-1))
+            self._buf_in_q[i] = np.rint(in_q[self._padding-i-1]*(2**15-1))
 
         for i in range(len(self._buf_in_i)-self._padding):
             self._buf_in_i[i+self._padding] = np.rint(in_i[i]*(2**15-1))
@@ -153,13 +156,4 @@ class AgcDashModel():
         outs = (np.array(self._buf_agc_i[self._padding:])/(2**15-1),
                 np.array(self._buf_agc_q[self._padding:])/(2**15-1))
 
-        # Purge to cover up bug...
-        for _ in range(2):
-            self._dma_agc_i.recvchannel.transfer(self._buf_agc_i)
-            self._dma_agc_q.recvchannel.transfer(self._buf_agc_q)
-            self._dma_agc_g.recvchannel.transfer(self._buf_agc_g)
-
-            self._dma_agc_q.recvchannel.wait()
-            self._dma_agc_i.recvchannel.wait()
-            self._dma_agc_g.recvchannel.wait()
         return outs
