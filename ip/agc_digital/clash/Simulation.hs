@@ -228,7 +228,7 @@ I've fixed it... Two things now:
 simOutPower g1 g2 n =
   let ref = 4.0 :: UFixed 3 12
       alpha = 1.0 :: UFixed 1 6
-      window = 7 :: Unsigned 5
+      window = 9 :: Unsigned 5
       --inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
       inputSig = take (8000*4) . cycle . take 8000 $ steppedInput g1 g2 n
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha

@@ -92,19 +92,21 @@ toUF = uf (SNat :: SNat m) . toUnsigned . unSF
 
 
 lnNorm :: HiddenClockResetEnable dom
-       => Vec n (Int, SFixed 5 32)
+       => Vec 32 (Int, SFixed 5 32)
        -> Signal dom (UFixed 0 32)
        -> Signal dom (SFixed 5 32)
 lnNorm args u = fmap (\(_,_,z)->shiftL z 1) $
                 foldl (\x params -> delay (0,0,0) $
-                                    fmap ((uncurry hypStepVectoring) params) x)
+                                    foldl (\x param -> fmap ((uncurry hypStepVectoring) param) x)
+                                          x params
+                      )
                 (bundle (s+1, s-1, 0))
-                args
+                (unconcat d8 args)
   where
   s = (resizeF . toSF) <$> u
 
 lnScaled :: (HiddenClockResetEnable dom)
-         => Vec n (Int, SFixed 5 32)
+         => Vec 32 (Int, SFixed 5 32)
          -> Vec 27 (SFixed 6 32)
          -> Signal dom (Unsigned 26)
          -> Signal dom (SFixed 7 32) --TODO tighten bits
@@ -117,7 +119,7 @@ lnScaled args eLn2s u =
   in liftA2 add eLn2 (lnNorm args (liftA2 scaleDown u (25-ms1)))
 
 log10 :: forall dom n . (HiddenClockResetEnable dom)
-         => Vec n (Int, SFixed 5 32)
+         => Vec 32 (Int, SFixed 5 32)
          -> Vec 27 (SFixed 6 32)
          -> Signal dom (Unsigned 26)
          -> Signal dom (SFixed 4 22)
@@ -129,26 +131,28 @@ log10 paramsVec eLn2sVec x =
 
 
 expNorm :: HiddenClockResetEnable dom
-       => Vec n (Int, SFixed 5 32)
+       => Vec 32 (Int, SFixed 5 32)
        -> SFixed 5 32
        -> Signal dom (SFixed 1 32)
        -> Signal dom (UFixed 4 32)
 expNorm args init u = fmap (\(x,_,_)->toUF x) $
                       foldl (\x params -> delay (0,0,0) $
-                                          fmap ((uncurry hypStepRotation) params) x)
+                                          foldl (\x param -> fmap ((uncurry hypStepRotation) param) x)
+                                          x params
+                      )
                       (bundle (pure init, pure init, s))
-                      args
+                      (unconcat d8 args)
   where
   s = resizeF <$> u
 
 expScaled :: forall n dom . (HiddenClockResetEnable dom)
-         => Vec n (Int, SFixed 5 32)
+         => Vec 32 (Int, SFixed 5 32)
          -> SFixed 5 32
          -> Vec 27 (SFixed 6 32)
          -> Signal dom (SFixed 6 22)
          -> Signal dom (UFixed 24 21) --TODO tighten bits
 expScaled args init eLn2s u =
-  let getQIndex u = foldl (\acc (i,b) -> if b then i else acc) 0 $ imap (\i x -> (fromIntegral i, abs u>x)) eLn2s
+  let getQIndex u = fst . fold (\(xi,xb) (yi,yb) -> if yb then (yi,yb) else (xi,xb)) $ imap (\i x -> (fromIntegral i, abs u>x)) eLn2s
       s = resizeF <$> u
       iQ = getQIndex <$> s
       qLn2 = (eLn2s !!) <$> iQ
@@ -161,7 +165,7 @@ expScaled args init eLn2s u =
   in res
 
 pow10 :: forall n dom . (HiddenClockResetEnable dom)
-         => Vec n (Int, SFixed 5 32)
+         => Vec 32 (Int, SFixed 5 32)
          -> SFixed 5 32
          -> Vec 27 (SFixed 6 32)
          -> Signal dom (SFixed 5 20)

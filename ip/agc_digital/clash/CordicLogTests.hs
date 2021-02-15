@@ -87,7 +87,7 @@ prop_exp_scaled = forAll (suchThat arbitrary (\x -> abs x<11)) prop
 
 prop_pow10 = forAll (suchThat arbitrary (\x -> abs x<4.8)) prop
   where
-  prop :: SFixed 5 22 -> Bool
+  prop :: SFixed 5 20 -> Bool
   prop x = let expt = 10 ** (sfToDouble x)
                act = ufToDouble (simulate @System (pow10 paramsVec kScaling eLn2sVec) (repeat x) !! 33)
                percent_margin = 3
