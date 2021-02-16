@@ -185,6 +185,11 @@ _agc_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.L
             'y': state['agc_q'],
             'name': 'Q',
             'mode': 'lines'
+        }, {
+            'x': state['t'],
+            'y': state['agc_g'],
+            'name': 'Gain',
+            'mode': 'lines',
         }],
         'layout': {
             'title': 'Output Signal',

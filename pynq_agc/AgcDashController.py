@@ -75,6 +75,7 @@ class AgcDashController():
         )
         (init_state['i'], init_state['q']) = model.ref_signal(init_state['signal_mode'], init_state['fc'], init_state['fm'])
         (init_state['agc_i'], init_state['agc_q']) = model.ref_signal(init_state['signal_mode'], init_state['fc'], init_state['fm'])
+        init_state['agc_g'] = [1 for _ in init_state['i']]
         model.agc_cfg(1, init_state['agc_window'], init_state['agc_ref'], init_state['agc_alpha'])
         view = view_template(init_state)
 
@@ -164,7 +165,7 @@ class AgcDashController():
             self.model.agc_cfg(agc_en,agc_window,agc_ref,agc_alpha)
 
             (trace_i, trace_q) = (fig_in['data'][0]['y'],fig_in['data'][1]['y'])
-            (agc_i, agc_q) = self.model.agc_loopback(trace_i,trace_q)
+            (agc_i, agc_q, agc_g) = self.model.agc_loopback(trace_i,trace_q)
             trace_t = self.model.t
 
             if graph_mode == 'time':
@@ -172,6 +173,8 @@ class AgcDashController():
                 fig_agc['data'][0]['y'] = agc_i
                 fig_agc['data'][1]['x'] = trace_t
                 fig_agc['data'][1]['y'] = agc_q
+                fig_agc['data'][2]['x'] = trace_t
+                fig_agc['data'][2]['y'] = agc_g
                 fig_agc['layout']['xaxis']['title'] = "Time (s)"
                 fig_agc['layout']['yaxis']['title'] = "Normalised Amplitude"
                 fig_agc['layout']['shapes'] = [
@@ -188,7 +191,7 @@ class AgcDashController():
                         yref = 'y',
                         y0 = -1,
                         y1 = 1,
-                        line = {'width':0},
+                        line = {'width':-1},
                     )
                 ]
             if graph_mode == 'const':
@@ -196,6 +199,8 @@ class AgcDashController():
                 fig_agc['data'][0]['y'] = agc_q
                 fig_agc['data'][1]['x'] = []
                 fig_agc['data'][1]['y'] = []
+                fig_agc['data'][2]['x'] = []
+                fig_agc['data'][2]['y'] = []
                 fig_agc['layout']['xaxis']['title'] = "I Amplitude"
                 fig_agc['layout']['yaxis']['title'] = "Q Amplitude"
                 fig_agc['layout']['shapes']=[]
@@ -205,6 +210,8 @@ class AgcDashController():
                 fig_agc['data'][0]['y'] = freq_y
                 fig_agc['data'][1]['x'] = []
                 fig_agc['data'][1]['y'] = []
+                fig_agc['data'][2]['x'] = []
+                fig_agc['data'][2]['y'] = []
                 fig_agc['layout']['xaxis']['title'] = "Frequency (Hz)"
                 fig_agc['layout']['yaxis']['title'] = "Power dB"
                 fig_agc['layout']['shapes']=[]

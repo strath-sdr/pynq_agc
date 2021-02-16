@@ -60,12 +60,11 @@ def calc_ref(t, mode, fc, data_rate, random_data):
 
 class AgcDashModel():
 
-    def __init__(self, fs = 1000000, N = 10000-2000, padding = 2000):
+    def __init__(self, fs = 1000000, N = 10000-2000):
 
         # Input paramters
         self._fs = fs
         self._N  = N
-        self._padding = padding
 
         # Cache timeseries and reusable random data
         self._random_data = [rnd.randint(0,3) for _ in range(N)]
@@ -85,11 +84,11 @@ class AgcDashModel():
         self._dma_agc_g = ol.dma_agc_g
 
         # Allocate buffers
-        self._buf_in_i  = allocate(shape=(N+padding,), dtype=np.int16)
-        self._buf_in_q  = allocate(shape=(N+padding,), dtype=np.int16)
-        self._buf_agc_i = allocate(shape=(N+padding,), dtype=np.int16)
-        self._buf_agc_q = allocate(shape=(N+padding,), dtype=np.int16)
-        self._buf_agc_g = allocate(shape=(N+padding,), dtype=np.uint32)
+        self._buf_in_i  = allocate(shape=(N,), dtype=np.int16)
+        self._buf_in_q  = allocate(shape=(N,), dtype=np.int16)
+        self._buf_agc_i = allocate(shape=(N,), dtype=np.int16)
+        self._buf_agc_q = allocate(shape=(N,), dtype=np.int16)
+        self._buf_agc_g = allocate(shape=(N,), dtype=np.uint32)
 
     @property
     def N(self):
@@ -133,13 +132,9 @@ class AgcDashModel():
 
     def agc_loopback(self, in_i, in_q):
 
-        for i in range(self._padding):
-            self._buf_in_i[i] = np.rint(in_i[self._padding-i-1]*(2**15-1))
-            self._buf_in_q[i] = np.rint(in_q[self._padding-i-1]*(2**15-1))
-
-        for i in range(len(self._buf_in_i)-self._padding):
-            self._buf_in_i[i+self._padding] = np.rint(in_i[i]*(2**15-1))
-            self._buf_in_q[i+self._padding] = np.rint(in_q[i]*(2**15-1))
+        for i in range(len(self._buf_in_i)):
+            self._buf_in_i[i] = np.rint(in_i[i]*(2**15-1))
+            self._buf_in_q[i] = np.rint(in_q[i]*(2**15-1))
 
         self._dma_agc_i.recvchannel.transfer(self._buf_agc_i)
         self._dma_agc_q.recvchannel.transfer(self._buf_agc_q)
@@ -153,7 +148,8 @@ class AgcDashModel():
         self._dma_agc_i.recvchannel.wait()
         self._dma_agc_g.recvchannel.wait()
 
-        outs = (np.array(self._buf_agc_i[self._padding:])/(2**15-1),
-                np.array(self._buf_agc_q[self._padding:])/(2**15-1))
+        outs = (np.array(self._buf_agc_i)/(2**15-1),
+                np.array(self._buf_agc_q)/(2**15-1),
+                np.array(self._buf_agc_g)/(2**15-1))
 
         return outs
