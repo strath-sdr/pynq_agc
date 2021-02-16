@@ -56,20 +56,20 @@ _agc_control_panel = lambda state: dbc.Container([
                 dbc.ListGroupItem([
                     dbc.InputGroup([
                         dbc.InputGroupAddon("Ref", addon_type="prepend"),
-                        dcc.Slider(id='agc-ref',min=0,max=1,step=0.001, value=(state['agc_ref']), className="form-control dbc-slider"),
+                        dcc.Slider(id='agc-ref',min=0,max=1,step=0.01, value=(state['agc_ref']), className="form-control dbc-slider"),
                         dbc.InputGroupAddon(str(state['agc_ref']*100)+"%", id='agc-ref-label', addon_type="append")
                 ], className='mt-1'),
                      dbc.InputGroup([
                         dbc.InputGroupAddon("Alpha", addon_type="prepend"),
-                        dcc.Slider(id='agc-alpha', min=0,max=2,step=0.002, value=state['agc_alpha'], className="form-control dbc-slider"),
+                        dcc.Slider(id='agc-alpha', min=0,max=1.99,step=0.1, value=state['agc_alpha'], className="form-control dbc-slider"),
                         dbc.InputGroupAddon(str(state['agc_alpha']),id='agc-alpha-label', addon_type="append"),
                 ], className='mt-1'),
                 dbc.InputGroup([
                         dbc.InputGroupAddon("Window", addon_type="prepend"),
-                        dcc.Slider(id='agc-window', min=0,max=31,step=1, value=state['agc_window'], className="form-control dbc-slider"),
+                        dcc.Slider(id='agc-window', min=0,max=10,step=1, value=state['agc_window'], className="form-control dbc-slider"),
                         dbc.InputGroupAddon(str(2**state['agc_window'])+" Samples",id='agc-window-label', addon_type="append"),
                 ], className='mt-1'),
-                
+
                 dbc.InputGroup([
                         dbc.InputGroupAddon("Bypass AGC", addon_type="prepend"),
                         dbc.Checklist(
@@ -86,7 +86,7 @@ _agc_control_panel = lambda state: dbc.Container([
                 ]),
              ])
         ])),
-    
+
     dbc.Row(
         dbc.Col([
             dbc.ListGroup([
@@ -103,7 +103,7 @@ _agc_control_panel = lambda state: dbc.Container([
                 ])
             ])
         ])
-    
+
     ,className='mt-3')
 ])
 
@@ -190,6 +190,7 @@ _agc_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.L
             'y': state['agc_g'],
             'name': 'Gain',
             'mode': 'lines',
+            'visible': 'legendonly',
         }],
         'layout': {
             'title': 'Output Signal',

@@ -60,7 +60,7 @@ def calc_ref(t, mode, fc, data_rate, random_data):
 
 class AgcDashModel():
 
-    def __init__(self, fs = 1000000, N = 10000-2000):
+    def __init__(self, fs = 1000000, N = 6000):
 
         # Input paramters
         self._fs = fs
