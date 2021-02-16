@@ -58,6 +58,26 @@ dfPowDetect = pureDF (uncurry powerDetector)
 
 {- Integrate and dump -}
 
+movAvg :: forall dom n window . (HiddenClockResetEnable dom, KnownNat n, KnownNat window)
+       => Signal dom (Unsigned window) -> Signal dom (Unsigned n) -> Signal dom (Unsigned n)
+movAvg window x = liftA2 (\x w -> resize $ shiftR x (fromIntegral w)) acc window
+  where
+  winPow2 :: Signal dom (Unsigned (2^window))
+  winPow2 = (\w -> shiftL 1 (fromIntegral w) - 1) <$> window
+
+  ram = blockRamPow2 (repeat 0)
+
+  rAddr :: Signal dom (Unsigned (2^window))
+  rAddr = delay 1 $ liftA2 incrModWindow winPow2 rAddr
+
+  wAddr :: Signal dom (Unsigned (2^window))
+  wAddr = delay 0 $ liftA2 incrModWindow winPow2 wAddr
+
+  incrModWindow w x = if x >= w - 1 then 0 else x + 1
+  oldest = ram rAddr (Just <$> bundle (wAddr, x))
+  acc :: Signal dom (Unsigned (2^window + n))
+  acc = delay 0 $ acc + (resize <$> x) - (resize <$> oldest)
+
 intgDumpPow2
   :: forall dom window n . (HiddenClockResetEnable dom, KnownNat window, KnownNat n)
   => Signal dom (Unsigned window) -> Signal dom Bool -> Signal dom (Unsigned n) -> Signal dom (Maybe (Unsigned n))
@@ -75,7 +95,9 @@ intgDumpPow2 window' en x = mealy f initState (bundle (en, x, window))
                                        )
         window = register 0 window'
 
+--dfIntgDump window = gatedToDF (\en x -> exposeEnable movAvg (toEnable en) window x)
 dfIntgDump window = gatedMaybeToDF (intgDumpPow2 window)
+
 
 {- Calculating log error -}
 
@@ -98,7 +120,7 @@ dfLogErr ref alpha = liftDF (f ref alpha)
   where f ref alpha x iV oR =
           let x' = regEn 0 iV x
               logX = log10 paramsVec eLn2sVec x'
-              dif  = register 0 $ logX - ((resizeF . toSF) <$> ref)
+              dif  = register 0 $ ((resizeF . toSF) <$> ref) - logX
               err  = register 0 $ ((toSF . resizeF) <$> alpha) * dif
               oV = last $ iterate d8 (register False) iV
           in (err, oV, oR)
@@ -113,7 +135,7 @@ dfLogErr ref alpha = liftDF (f ref alpha)
 dfAccum :: (HiddenClockResetEnable dom, KnownNat i, KnownNat f)
         => DataFlow dom Bool Bool (SFixed i f) (SFixed i f)
 dfAccum = gatedVToDF f
-  where f en err = let x' = liftA2 boundedSub x err
+  where f en err = let x' = liftA2 boundedAdd x err
                        x  = regEn 0 en x'
                    in (register False en, x)
 
@@ -148,9 +170,12 @@ dfForward
                             (UFixed 24 26)
 dfForward window ref alpha = dfPowDetect
                              `seqDF` dfIntgDump window
+                             `seqDF` regDF
                              `seqDF` dfLogErr (resizeF <$> ref) alpha
+                             `seqDF` regDF
                              `seqDF` dfAccum
                              `seqDF` dfAntilog
+                             `seqDF` regDF
                              `seqDF` dfSampleAndHold
 
 dfGainStage :: forall dom sig
