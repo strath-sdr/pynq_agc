@@ -33,7 +33,7 @@ gatedVToDF
   -> DataFlow dom Bool Bool a b                        -- ^ DataFlow circuit
 gatedVToDF f = DF $ \x vi ro -> let en = vi .&&. ro
                                     (vo, x') = f en x
-                                in  (x', vo, ro)
+                                in  (x', en .&&. vo, ro)
 
 -- | Convert a clock-enabled circuit with Maybe output to a DataFlow circuit
 gatedMaybeToDF
@@ -52,7 +52,7 @@ regDF = hideClockResetEnable fifoDF d2 Nil
 
 -- | FIFO DataFlow circuit for buffering test input data
 testBufferDF
-  :: (HiddenClockResetEnable dom, Num a, NFDataX a, KnownNat n)
+  :: (HiddenClockResetEnable dom, NFDataX a, KnownNat n)
   => SNat n -> DataFlow dom Bool Bool a a
 testBufferDF n = hideClockResetEnable fifoDF len (Nil)
   where len = powSNat d2 (clogBaseSNat d2 $ addSNat d1 n)

@@ -12,6 +12,7 @@ import Clash.Prelude (
   shiftR,
   register,
   sf, bundle, df,
+  riseEvery,
   fLitR, KnownNat
   )
 
@@ -34,6 +35,7 @@ import qualified Data.Complex as DC
 import Numeric.Transform.Fourier.FFT
 import DSP.Basic (linspace)
 
+import DataFlow.Extra
 import Test.QuickCheck
 
 import Statistics.Sample
@@ -200,11 +202,10 @@ splitInto n xs = let (a,b) = splitAt n xs
 isSteady :: Int -> Double -> Double -> [Double] -> Bool
 isSteady n ref percent = (<=n) . maximum . map length . filter (\a->False == a!!0) . group . map (\x->abs (x-ref)/ref < (percent/100))
 
---simDfLogErr ref alpha x =
---  simulate @System (
---    bundle $ df (\x-> dfLogErr (pure ref) (pure alpha)) x (register True (pure False)) (pure True) :: Signal System (SFixed 4 22, Bool, Bool)
---    )
---  (repeat x) :: [(SFixed 4 22, Bool, Bool)]
+simDfLogErr ref alpha xs =
+  simulate @System (\x ->
+    bundle $ df (dfLogErr (pure ref) (pure alpha)) x (riseEvery (SNat :: SNat 3)) (pure True) )
+  (cycle xs) :: [(SFixed 4 22, Bool, Bool)]
 
 {--
 
@@ -230,13 +231,13 @@ simOutPower g1 g2 n =
       alpha = 1.0 :: UFixed 1 6
       window = 9 :: Unsigned 5
       --inputSig = take (10000 + rec_time*(2^window)) $ steppedInput g1 g2 n
-      inputSig = take (8000*4) . cycle . take 8000 $ steppedInput g1 g2 n
+      inputSig = take (6000*5) $ steppedInput g1 g2 n
       rec_time = (2+) . getRecoveryCycles $ ufToDouble alpha
       --out_gain = take 15000 $ simAgc (fromIntegral window) (ufToDouble ref) (ufToDouble alpha) (map (\(i,q)->(fromIntegral i, fromIntegral q)) inputSig)
       --out_pow = map (\(_,i,q)-> sqrt $ (i)**2 + (q)**2) out_gain
-      ip x = bundle $ df (dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 15, (Signed 16, Signed 16)), Bool, Bool)
+      ip x = bundle $ df (testBufferDF (SNat :: SNat 6000) `seqDF` throttleDF (SNat :: SNat 2) `seqDF` dfAgc (pure window) (pure ref) (pure alpha) (pure True)) x (pure True) (pure True) :: Signal System ((UFixed 10 15, (Signed 16, Signed 16)), Bool, Bool)
       --outs = drop 1 . take (10000 + rec_time*(2^window))
-      outs = drop 1 . take (8000*4)
+      outs = drop 1 . take 6000 . filter (\(_,v,r)->v)
              $ simulate @System ip inputSig
       out_gain = map (\((g,(i,q)), v,r)->(g,i,q)) outs
       out_pow = map (\(_,i,q)-> sqrt $ (fromIntegral i)**2 + (fromIntegral q)**2) out_gain
