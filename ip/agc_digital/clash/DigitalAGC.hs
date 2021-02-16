@@ -10,8 +10,8 @@ import qualified Prelude as P
 
 {- Numeric helper functions -}
 
-shiftSF :: (KnownNat n, KnownNat i, KnownNat f, n <= i) => SNat n -> SFixed i f -> SFixed (i-n) (f+n)
-shiftSF n x = resizeF $ shiftR x (snatToNum n)
+shiftUF :: (KnownNat n, KnownNat i, KnownNat f, n <= i) => SNat n -> UFixed i f -> UFixed (i-n) (f+n)
+shiftUF n x = resizeF $ shiftR x (snatToNum n)
 
 {- Power detector with root of squares approximation -}
 
@@ -212,9 +212,9 @@ dfAgc window ref alpha en = feedbackLoop logic `seqDF` outReg
   where feedbackLoop ip = hideClockResetEnable loopDF d2 Nil ip
         logic           = (idDF `parDF` fwd) `seqDF` lockStep `seqDF` amp `seqDF` stepLock
         outReg          = hideClockResetEnable fifoDF d2 ((def,(def,def)):>(def,(def,def)):>Nil)
-        fwd = dfForward window ref alpha `seqDF` pureDF (shrink (SNat :: SNat 26)
+        fwd = dfForward window ref alpha `seqDF` pureDF (shrink (SNat :: SNat (26+14))
                                                                 (SNat :: SNat 10)
-                                                                (SNat :: SNat 15))
+                                                                (SNat :: SNat 15) . shiftUF d14)
         amp = dfGainStage en
 
 
