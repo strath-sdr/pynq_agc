@@ -66,7 +66,7 @@ class AgcDashController():
             fc = 20000,
             fm =  2000,
             agc_ref = 0.7,
-            agc_alpha = 1.0,
+            agc_alpha = 0.6,
             agc_window = 6,
             agc_graph_mode = 'time',
             t = self.model.t,

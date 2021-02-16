@@ -15,6 +15,7 @@ set_property "sim.ip.auto_export_scripts" "1"                               [cur
 set_property "simulator_language"         "Mixed"                           [current_project]
 set_property "target_language"            "VHDL"                            [current_project]
 set_property "xpm_libraries"              "XPM_CDC"                         [current_project]
+set_param general.maxThreads 2
 
 # Include IP repo in original project
 set_property  ip_repo_paths  ../../ip [current_project]

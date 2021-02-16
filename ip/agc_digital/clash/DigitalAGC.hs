@@ -121,7 +121,7 @@ dfLogErr ref alpha = liftDF (f ref alpha)
               logX = log10 paramsVec eLn2sVec x'
               dif  = register 0 $ ((resizeF . toSF) <$> ref) - logX
               err  = register 0 $ ((toSF . resizeF) <$> alpha) * dif
-              oV = last $ iterate d8 (register False) en
+              oV = last $ iterate d36 (register False) en
           in (regEn 0 oV err, register False oV, oR)
 --  where f ref alpha x iV oR =
 --          let logX = (\x -> fLitR (logBase 10 (fromIntegral x))) <$> x :: Signal dom (SFixed 4 22)
@@ -147,7 +147,7 @@ dfAntilog = liftDF f
   where f x iV oR =
           let en = iV .&&. oR
               x' = regEn 0 en x
-              oV = last $ iterate d8 (register False) en
+              oV = last $ iterate d36 (register False) en
               y = register 0 $ resizeF <$> pow10 paramsVec kScaling eLn2sVec (resizeF <$> x') :: Signal dom (UFixed 24 26)
           in (y, oV, oR)
 --          let y = (\x -> fLitR $ 10 ** (sfToDouble x)) <$> x :: Signal dom (UFixed 24 26) -- This is probably a pain point!

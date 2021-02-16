@@ -101,7 +101,7 @@ lnNorm args u = fmap (\(_,_,z)->shiftL z 1) $
                                           x params
                       )
                 (bundle (s+1, s-1, 0))
-                (unconcat d8 args)
+                (unconcat d1 args)
   where
   s = (resizeF . toSF) <$> u
 
@@ -141,7 +141,7 @@ expNorm args init u = fmap (\(x,_,_)->toUF x) $
                                           x params
                       )
                       (bundle (pure init, pure init, s))
-                      (unconcat d8 args)
+                      (unconcat d1 args)
   where
   s = resizeF <$> u
 
