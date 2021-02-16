@@ -44,7 +44,7 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
 set list_projs [get_projects -quiet]
 if { $list_projs eq "" } {
    create_project project_1 myproj -part xczu28dr-ffvg1517-2-e
-   set_property BOARD_PART xilinx.com:zcu111:part0:1.2 [current_project]
+   set_property BOARD_PART xilinx.com:zcu111:part0:1.1 [current_project]
 }
 
 
@@ -128,7 +128,6 @@ user.org:user:agc_v1_0:1.0\
 xilinx.com:ip:smartconnect:1.0\
 xilinx.com:ip:c_shift_ram:12.0\
 xilinx.com:ip:axi_dma:7.1\
-xilinx.com:ip:axis_data_fifo:2.0\
 xilinx.com:ip:proc_sys_reset:5.0\
 xilinx.com:ip:zynq_ultra_ps_e:3.3\
 "
@@ -273,36 +272,6 @@ proc create_root_design { parentCell } {
    CONFIG.c_sg_include_stscntrl_strm {0} \
    CONFIG.c_sg_length_width {26} \
  ] $dma_in_q
-
-  # Create instance: fifo_agc_g, and set properties
-  set fifo_agc_g [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 fifo_agc_g ]
-  set_property -dict [ list \
-   CONFIG.HAS_TLAST {1} \
- ] $fifo_agc_g
-
-  # Create instance: fifo_agc_i, and set properties
-  set fifo_agc_i [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 fifo_agc_i ]
-  set_property -dict [ list \
-   CONFIG.HAS_TLAST {1} \
- ] $fifo_agc_i
-
-  # Create instance: fifo_agc_q, and set properties
-  set fifo_agc_q [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 fifo_agc_q ]
-  set_property -dict [ list \
-   CONFIG.HAS_TLAST {1} \
- ] $fifo_agc_q
-
-  # Create instance: fifo_in_i, and set properties
-  set fifo_in_i [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 fifo_in_i ]
-  set_property -dict [ list \
-   CONFIG.HAS_TLAST {1} \
- ] $fifo_in_i
-
-  # Create instance: fifo_in_q, and set properties
-  set fifo_in_q [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 fifo_in_q ]
-  set_property -dict [ list \
-   CONFIG.HAS_TLAST {1} \
- ] $fifo_in_q
 
   # Create instance: rst_ps8_0_99M, and set properties
   set rst_ps8_0_99M [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps8_0_99M ]
@@ -971,9 +940,9 @@ proc create_root_design { parentCell } {
  ] $zynq_ultra_ps_e_0
 
   # Create interface connections
-  connect_bd_intf_net -intf_net agc_m_g_axis [get_bd_intf_pins agc/m_g_axis] [get_bd_intf_pins fifo_agc_g/S_AXIS]
-  connect_bd_intf_net -intf_net agc_m_i_axis [get_bd_intf_pins agc/m_i_axis] [get_bd_intf_pins fifo_agc_i/S_AXIS]
-  connect_bd_intf_net -intf_net agc_m_q_axis [get_bd_intf_pins agc/m_q_axis] [get_bd_intf_pins fifo_agc_q/S_AXIS]
+  connect_bd_intf_net -intf_net agc_m_g_axis [get_bd_intf_pins agc/m_g_axis] [get_bd_intf_pins dma_agc_g/S_AXIS_S2MM]
+  connect_bd_intf_net -intf_net agc_m_i_axis [get_bd_intf_pins agc/m_i_axis] [get_bd_intf_pins dma_agc_i/S_AXIS_S2MM]
+  connect_bd_intf_net -intf_net agc_m_q_axis [get_bd_intf_pins agc/m_q_axis] [get_bd_intf_pins dma_agc_q/S_AXIS_S2MM]
   connect_bd_intf_net -intf_net axi_mem_intercon_M00_AXI [get_bd_intf_pins agc/s00_axi] [get_bd_intf_pins axi_mem_intercon/M00_AXI]
   connect_bd_intf_net -intf_net axi_mem_intercon_M01_AXI [get_bd_intf_pins axi_mem_intercon/M01_AXI] [get_bd_intf_pins dma_agc_g/S_AXI_LITE]
   connect_bd_intf_net -intf_net axi_mem_intercon_M02_AXI [get_bd_intf_pins axi_mem_intercon/M02_AXI] [get_bd_intf_pins dma_agc_i/S_AXI_LITE]
@@ -987,23 +956,18 @@ proc create_root_design { parentCell } {
   connect_bd_intf_net -intf_net dma_agc_g_M_AXI_S2MM [get_bd_intf_pins axi_smc/S00_AXI] [get_bd_intf_pins dma_agc_g/M_AXI_S2MM]
   connect_bd_intf_net -intf_net dma_agc_i_M_AXI_S2MM [get_bd_intf_pins axi_smc/S01_AXI] [get_bd_intf_pins dma_agc_i/M_AXI_S2MM]
   connect_bd_intf_net -intf_net dma_agc_q_M_AXI_S2MM [get_bd_intf_pins axi_smc/S02_AXI] [get_bd_intf_pins dma_agc_q/M_AXI_S2MM]
-  connect_bd_intf_net -intf_net dma_in_i_M_AXIS_MM2S [get_bd_intf_pins dma_in_i/M_AXIS_MM2S] [get_bd_intf_pins fifo_in_i/S_AXIS]
+  connect_bd_intf_net -intf_net dma_in_i_M_AXIS_MM2S [get_bd_intf_pins agc/s_i_axis] [get_bd_intf_pins dma_in_i/M_AXIS_MM2S]
   connect_bd_intf_net -intf_net dma_in_i_M_AXI_MM2S [get_bd_intf_pins axi_smc/S03_AXI] [get_bd_intf_pins dma_in_i/M_AXI_MM2S]
-  connect_bd_intf_net -intf_net dma_in_q_M_AXIS_MM2S [get_bd_intf_pins dma_in_q/M_AXIS_MM2S] [get_bd_intf_pins fifo_in_q/S_AXIS]
+  connect_bd_intf_net -intf_net dma_in_q_M_AXIS_MM2S [get_bd_intf_pins agc/s_q_axis] [get_bd_intf_pins dma_in_q/M_AXIS_MM2S]
   connect_bd_intf_net -intf_net dma_in_q_M_AXI_MM2S [get_bd_intf_pins axi_smc/S04_AXI] [get_bd_intf_pins dma_in_q/M_AXI_MM2S]
-  connect_bd_intf_net -intf_net fifo_agc_g_M_AXIS [get_bd_intf_pins dma_agc_g/S_AXIS_S2MM] [get_bd_intf_pins fifo_agc_g/M_AXIS]
-  connect_bd_intf_net -intf_net fifo_agc_i_M_AXIS [get_bd_intf_pins dma_agc_i/S_AXIS_S2MM] [get_bd_intf_pins fifo_agc_i/M_AXIS]
-  connect_bd_intf_net -intf_net fifo_agc_q_M_AXIS [get_bd_intf_pins dma_agc_q/S_AXIS_S2MM] [get_bd_intf_pins fifo_agc_q/M_AXIS]
-  connect_bd_intf_net -intf_net fifo_in_i_M_AXIS [get_bd_intf_pins agc/s_i_axis] [get_bd_intf_pins fifo_in_i/M_AXIS]
-  connect_bd_intf_net -intf_net fifo_in_q_M_AXIS [get_bd_intf_pins agc/s_q_axis] [get_bd_intf_pins fifo_in_q/M_AXIS]
   connect_bd_intf_net -intf_net zynq_ultra_ps_e_0_M_AXI_HPM0_FPD [get_bd_intf_pins axi_mem_intercon/S00_AXI] [get_bd_intf_pins zynq_ultra_ps_e_0/M_AXI_HPM0_FPD]
   connect_bd_intf_net -intf_net zynq_ultra_ps_e_0_M_AXI_HPM1_FPD [get_bd_intf_pins axi_mem_intercon/S01_AXI] [get_bd_intf_pins zynq_ultra_ps_e_0/M_AXI_HPM1_FPD]
 
   # Create port connections
-  connect_bd_net -net c_shift_ram_0_Q [get_bd_pins c_shift_ram_0/Q] [get_bd_pins fifo_agc_g/s_axis_tlast] [get_bd_pins fifo_agc_i/s_axis_tlast] [get_bd_pins fifo_agc_q/s_axis_tlast]
-  connect_bd_net -net fifo_in_i_m_axis_tlast [get_bd_pins c_shift_ram_0/D] [get_bd_pins fifo_in_i/m_axis_tlast]
-  connect_bd_net -net rst_ps8_0_99M_peripheral_aresetn [get_bd_pins agc/aresetn] [get_bd_pins axi_mem_intercon/ARESETN] [get_bd_pins axi_mem_intercon/M00_ARESETN] [get_bd_pins axi_mem_intercon/M01_ARESETN] [get_bd_pins axi_mem_intercon/M02_ARESETN] [get_bd_pins axi_mem_intercon/M03_ARESETN] [get_bd_pins axi_mem_intercon/M04_ARESETN] [get_bd_pins axi_mem_intercon/M05_ARESETN] [get_bd_pins axi_mem_intercon/S00_ARESETN] [get_bd_pins axi_mem_intercon/S01_ARESETN] [get_bd_pins axi_smc/aresetn] [get_bd_pins dma_agc_g/axi_resetn] [get_bd_pins dma_agc_i/axi_resetn] [get_bd_pins dma_agc_q/axi_resetn] [get_bd_pins dma_in_i/axi_resetn] [get_bd_pins dma_in_q/axi_resetn] [get_bd_pins fifo_agc_g/s_axis_aresetn] [get_bd_pins fifo_agc_i/s_axis_aresetn] [get_bd_pins fifo_agc_q/s_axis_aresetn] [get_bd_pins fifo_in_i/s_axis_aresetn] [get_bd_pins fifo_in_q/s_axis_aresetn] [get_bd_pins rst_ps8_0_99M/peripheral_aresetn]
-  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins agc/clk] [get_bd_pins axi_mem_intercon/ACLK] [get_bd_pins axi_mem_intercon/M00_ACLK] [get_bd_pins axi_mem_intercon/M01_ACLK] [get_bd_pins axi_mem_intercon/M02_ACLK] [get_bd_pins axi_mem_intercon/M03_ACLK] [get_bd_pins axi_mem_intercon/M04_ACLK] [get_bd_pins axi_mem_intercon/M05_ACLK] [get_bd_pins axi_mem_intercon/S00_ACLK] [get_bd_pins axi_mem_intercon/S01_ACLK] [get_bd_pins axi_smc/aclk] [get_bd_pins c_shift_ram_0/CLK] [get_bd_pins dma_agc_g/m_axi_s2mm_aclk] [get_bd_pins dma_agc_g/s_axi_lite_aclk] [get_bd_pins dma_agc_i/m_axi_s2mm_aclk] [get_bd_pins dma_agc_i/s_axi_lite_aclk] [get_bd_pins dma_agc_q/m_axi_s2mm_aclk] [get_bd_pins dma_agc_q/s_axi_lite_aclk] [get_bd_pins dma_in_i/m_axi_mm2s_aclk] [get_bd_pins dma_in_i/s_axi_lite_aclk] [get_bd_pins dma_in_q/m_axi_mm2s_aclk] [get_bd_pins dma_in_q/s_axi_lite_aclk] [get_bd_pins fifo_agc_g/s_axis_aclk] [get_bd_pins fifo_agc_i/s_axis_aclk] [get_bd_pins fifo_agc_q/s_axis_aclk] [get_bd_pins fifo_in_i/s_axis_aclk] [get_bd_pins fifo_in_q/s_axis_aclk] [get_bd_pins rst_ps8_0_99M/slowest_sync_clk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm1_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp1_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp2_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp3_fpd_aclk]
+  connect_bd_net -net c_shift_ram_0_Q [get_bd_pins c_shift_ram_0/Q] [get_bd_pins dma_agc_g/s_axis_s2mm_tlast] [get_bd_pins dma_agc_i/s_axis_s2mm_tlast] [get_bd_pins dma_agc_q/s_axis_s2mm_tlast]
+  connect_bd_net -net dma_in_i_m_axis_mm2s_tlast [get_bd_pins c_shift_ram_0/D] [get_bd_pins dma_in_i/m_axis_mm2s_tlast]
+  connect_bd_net -net rst_ps8_0_99M_peripheral_aresetn [get_bd_pins agc/aresetn] [get_bd_pins axi_mem_intercon/ARESETN] [get_bd_pins axi_mem_intercon/M00_ARESETN] [get_bd_pins axi_mem_intercon/M01_ARESETN] [get_bd_pins axi_mem_intercon/M02_ARESETN] [get_bd_pins axi_mem_intercon/M03_ARESETN] [get_bd_pins axi_mem_intercon/M04_ARESETN] [get_bd_pins axi_mem_intercon/M05_ARESETN] [get_bd_pins axi_mem_intercon/S00_ARESETN] [get_bd_pins axi_mem_intercon/S01_ARESETN] [get_bd_pins axi_smc/aresetn] [get_bd_pins dma_agc_g/axi_resetn] [get_bd_pins dma_agc_i/axi_resetn] [get_bd_pins dma_agc_q/axi_resetn] [get_bd_pins dma_in_i/axi_resetn] [get_bd_pins dma_in_q/axi_resetn] [get_bd_pins rst_ps8_0_99M/peripheral_aresetn]
+  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins agc/clk] [get_bd_pins axi_mem_intercon/ACLK] [get_bd_pins axi_mem_intercon/M00_ACLK] [get_bd_pins axi_mem_intercon/M01_ACLK] [get_bd_pins axi_mem_intercon/M02_ACLK] [get_bd_pins axi_mem_intercon/M03_ACLK] [get_bd_pins axi_mem_intercon/M04_ACLK] [get_bd_pins axi_mem_intercon/M05_ACLK] [get_bd_pins axi_mem_intercon/S00_ACLK] [get_bd_pins axi_mem_intercon/S01_ACLK] [get_bd_pins axi_smc/aclk] [get_bd_pins c_shift_ram_0/CLK] [get_bd_pins dma_agc_g/m_axi_s2mm_aclk] [get_bd_pins dma_agc_g/s_axi_lite_aclk] [get_bd_pins dma_agc_i/m_axi_s2mm_aclk] [get_bd_pins dma_agc_i/s_axi_lite_aclk] [get_bd_pins dma_agc_q/m_axi_s2mm_aclk] [get_bd_pins dma_agc_q/s_axi_lite_aclk] [get_bd_pins dma_in_i/m_axi_mm2s_aclk] [get_bd_pins dma_in_i/s_axi_lite_aclk] [get_bd_pins dma_in_q/m_axi_mm2s_aclk] [get_bd_pins dma_in_q/s_axi_lite_aclk] [get_bd_pins rst_ps8_0_99M/slowest_sync_clk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm1_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp1_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp2_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp3_fpd_aclk]
   connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins rst_ps8_0_99M/ext_reset_in] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0]
 
   # Create address segments
@@ -1100,6 +1064,7 @@ proc create_root_design { parentCell } {
   # Restore current instance
   current_bd_instance $oldCurInst
 
+  validate_bd_design
   save_bd_design
 }
 # End of create_root_design()
@@ -1111,6 +1076,4 @@ proc create_root_design { parentCell } {
 
 create_root_design ""
 
-
-common::send_gid_msg -ssname BD::TCL -id 2053 -severity "WARNING" "This Tcl script was generated from a block design that has not been validated. It is possible that design <$design_name> may result in errors during validation."
 
