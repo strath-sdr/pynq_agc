@@ -22,7 +22,7 @@ kValue i = product $ P.take i $ P.map func shiftSequence
     where
     func i = sqrt (1 - 1 / (2 ** (2*fromIntegral i)))
 
---hypParams :: (KnownNat i, KnownNat f) => [(Int, SFixed i f)]
+hypParams :: (KnownNat i, KnownNat f) => [(Int, SFixed i f)]
 hypParams = P.zip shiftSequence $ P.map fLitR arctanhs
 
 -- https://dl.acm.org/doi/10.1145/1478786.1478840 for original paper on unified cordic

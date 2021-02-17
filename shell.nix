@@ -1,22 +1,24 @@
-{ nixpkgs ? import <nixpkgs> {} }:
+{ nixpkgs ? import ./nix/nixpkgs.nix {} }:
 
 let
-     pkgs = import (builtins.fetchGit {
-         name = "clash-1.2.4";                                                 
-         url = "https://github.com/NixOS/nixpkgs/";                       
-         ref = "refs/heads/nixpkgs-unstable";                     
-         rev = "2c162d49cd5b979eb66ff1653aecaeaa01690fcc";                                           
-     }) {};                                                                           
 
+    clash-125 = nixpkgs.fetchFromGitHub {
+		    owner = "clash-lang";
+		    repo = "clash-compiler";
+		    rev = "ce0723d84eb33f76acacac7a06326a1d0cfbfac2";
+		    sha256 = "1mfwnyhvaxw9iy5g0rpmgfc558bpzp5xc4k08vh97cvb35cj3k20";
+		    fetchSubmodules = true;
+		};
+    myclash = import clash-125 {};
 in
 
-pkgs.mkShell {
-  name = "clash-compiler-shell";
+nixpkgs.mkShell {
+  name = "myweeshell";
   shellHook = "";
   buildInputs = [
 
-    (pkgs.haskellPackages.ghcWithPackages (p: with p; [
-      clash-ghc
+    (nixpkgs.haskellPackages.ghcWithPackages (p: with p; [
+      myclash.clash-ghc
       ghc-typelits-extra
       ghc-typelits-knownnat
       ghc-typelits-natnormalise
