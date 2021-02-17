@@ -58,26 +58,6 @@ dfPowDetect = pureDF (uncurry powerDetector)
 
 {- Integrate and dump -}
 
-movAvg :: forall dom n window . (HiddenClockResetEnable dom, KnownNat n, KnownNat window)
-       => Signal dom (Unsigned window) -> Signal dom (Unsigned n) -> Signal dom (Unsigned n)
-movAvg window x = liftA2 (\x w -> resize $ shiftR x (fromIntegral w)) acc window
-  where
-  winPow2 :: Signal dom (Unsigned (2^window))
-  winPow2 = (\w -> shiftL 1 (fromIntegral w) - 1) <$> window
-
-  ram = blockRamPow2 (repeat 0)
-
-  rAddr :: Signal dom (Unsigned (2^window))
-  rAddr = delay 1 $ liftA2 incrModWindow winPow2 rAddr
-
-  wAddr :: Signal dom (Unsigned (2^window))
-  wAddr = delay 0 $ liftA2 incrModWindow winPow2 wAddr
-
-  incrModWindow w x = if x >= w - 1 then 0 else x + 1
-  oldest = ram rAddr (Just <$> bundle (wAddr, x))
-  acc :: Signal dom (Unsigned (2^window + n))
-  acc = delay 0 $ acc + (resize <$> x) - (resize <$> oldest)
-
 intgDumpPow2
   :: forall dom window n . (HiddenClockResetEnable dom, KnownNat window, KnownNat n)
   => Signal dom (Unsigned window) -> Signal dom (Unsigned n) -> Signal dom (Maybe (Unsigned n))
@@ -123,11 +103,6 @@ dfLogErr ref alpha = liftDF (f ref alpha)
               err  = register 0 $ ((toSF . resizeF) <$> alpha) * dif
               oV = last $ iterate d36 (register False) en
           in (regEn 0 oV err, register False oV, oR)
---  where f ref alpha x iV oR =
---          let logX = (\x -> fLitR (logBase 10 (fromIntegral x))) <$> x :: Signal dom (SFixed 4 22)
---              dif  = (resizeF . toSF <$> ref) - logX
---              err  = ((toSF . resizeF) <$> alpha) * dif
---          in (err, iV, oR)
 
 {- Wee accumulator -}
 
@@ -147,11 +122,9 @@ dfAntilog = liftDF f
   where f x iV oR =
           let en = iV .&&. oR
               x' = regEn 0 en x
-              oV = last $ iterate d36 (register False) en
+              oV = last $ iterate d35 (register False) en
               y = register 0 $ resizeF <$> pow10 paramsVec kScaling eLn2sVec (resizeF <$> x') :: Signal dom (UFixed 24 26)
           in (y, oV, oR)
---          let y = (\x -> fLitR $ 10 ** (sfToDouble x)) <$> x :: Signal dom (UFixed 24 26) -- This is probably a pain point!
---          in (y, iV, oR)
 
 dfSampleAndHold = liftDF f
   where f x iV oR =
@@ -169,14 +142,10 @@ dfForward
   -> DataFlow dom Bool Bool (Signed 26, Signed 26)
                             (UFixed 24 26)
 dfForward window ref alpha = dfPowDetect
-                             `seqDF` regDF
                              `seqDF` dfIntgDump window
-                             `seqDF` regDF
                              `seqDF` dfLogErr (resizeF <$> ref) alpha
-                             `seqDF` regDF
                              `seqDF` dfAccum
                              `seqDF` dfAntilog
-                             `seqDF` regDF
                              `seqDF` dfSampleAndHold
 
 dfGainStage :: forall dom sig
