@@ -69,7 +69,7 @@ _agc_control_panel = lambda state: dbc.Container([
                         dcc.Slider(id='agc-window', min=0,max=10,step=1, value=state['agc_window'], className="form-control dbc-slider"),
                         dbc.InputGroupAddon(str(2**state['agc_window'])+" Samples",id='agc-window-label', addon_type="append"),
                 ], className='mt-1'),
-
+                
                 dbc.InputGroup([
                         dbc.InputGroupAddon("Bypass AGC", addon_type="prepend"),
                         dbc.Checklist(
@@ -86,7 +86,7 @@ _agc_control_panel = lambda state: dbc.Container([
                 ]),
              ])
         ])),
-
+    
     dbc.Row(
         dbc.Col([
             dbc.ListGroup([
@@ -103,9 +103,30 @@ _agc_control_panel = lambda state: dbc.Container([
                 ])
             ])
         ])
-
+    
     ,className='mt-3')
 ])
+
+
+_presets_control_panel = lambda state : dbc.Container([
+    dbc.Row(
+        dbc.Col([
+            #dbc.ListGroup([
+                #dbc.ListGroupItem("Preset Scenarios", color='secondary'),
+                #dbc.ListGroupItem([
+                    dbc.InputGroup([
+                        dbc.InputGroupAddon("Preset Scenarios", addon_type="prepend"),
+                        dbc.Select(id='preset-option',options=[
+                            {"label": k, "value": k}
+                            for k in state['presets'].keys()
+                        ], value='Default'),
+                    ], className='mt-1'),
+                #]),
+             #])
+        ])
+    )
+])
+
 
 _in_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.Loading( type='dot', className='loading-anim align-self-center',  children=[
     dcc.Graph(
@@ -223,7 +244,11 @@ view_template = lambda state: html.Div(style={'font-size':'12px'},className='row
         dbc.ListGroup(dbc.ListGroupItem(dbc.Row([
             dbc.Col(_agc_graph(state)        , width=8),
             dbc.Col(_agc_control_panel(state), width=4),
-        ], className='align-items-center')),  className='mt-3')
+        ], className='align-items-center')),  className='mt-3'),
+        dbc.ListGroup(dbc.ListGroupItem(dbc.Row([
+            dbc.Col(_presets_control_panel(state), width=12),
+        ], className='align-items-center')),  className='mt-3'),
     ]),
-    html.Div(id='new-input-signal', style={'display':'none'})
+    html.Div(id='new-input-signal', style={'display':'none'}),
+    dcc.Input(id='new-env-preset', style={'display':'none'}),
 ])

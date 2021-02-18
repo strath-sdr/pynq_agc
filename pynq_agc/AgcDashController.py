@@ -1,6 +1,8 @@
 from .AgcDashView import view_template
 import dash
 import dash_bootstrap_components as dbc
+import numpy as np
+import ast
 from dash.dependencies import Input, Output, State
 from jupyter_dash import JupyterDash
 from netifaces import AF_INET, AF_INET6, AF_LINK, AF_PACKET, AF_BRIDGE, ifaddresses
@@ -62,21 +64,84 @@ class AgcDashController():
 
         # Generate an initial state
         init_state = dict(
-            signal_mode = 'sin',
+            signal_mode = 'sin',    # sin, am, fm, qpsk_bb, or qpsk_if
             fc = 20000,
             fm =  2000,
             agc_ref = 0.7,
             agc_alpha = 0.6,
             agc_window = 6,
-            agc_graph_mode = 'time',
+            agc_graph_mode = 'time', # time, const, freq
             t = self.model.t,
             N_handles = N_handles,
             handle_pos = [((i+1)*self.model.N/self.model.fs/(N_handles+1),1) for i in range(N_handles)],
         )
-        (init_state['i'], init_state['q']) = model.ref_signal(init_state['signal_mode'], init_state['fc'], init_state['fm'])
-        (init_state['agc_i'], init_state['agc_q']) = model.ref_signal(init_state['signal_mode'], init_state['fc'], init_state['fm'])
-        init_state['agc_g'] = [1 for _ in init_state['i']]
+
+        (init_state['i'], init_state['q']) = model.ref_signal(
+            init_state['signal_mode'], init_state['fc'], init_state['fm']
+        )
+
         model.agc_cfg(1, init_state['agc_window'], init_state['agc_ref'], init_state['agc_alpha'])
+
+        (init_state['agc_i'], init_state['agc_q'], init_state['agc_g']) = model.agc_loopback(
+            init_state['i'], init_state['q']
+        )
+
+        # Set preset configurations
+        init_state['presets'] = {
+            'Default' : {
+                'signal_mode'   : 'sin',
+                'fm'            : 2000,
+                'fc'            : 20000,
+                'agc_ref'       : 0.7,
+                'agc_alpha'     : 0.7,
+                'agc_window'    : 64,
+                'agc_bypass'    : False,
+                'agc_graph_mode': 'time',
+                'handle_pos'    : [(x*self.model.N/self.model.fs, y)
+                                   for (x,y) in [(0.2, 1.0), (0.4, 1.0), (0.6, 1.0), (0.8, 1.0)]
+                                  ],
+            },
+            'Slow fading' : {
+                'signal_mode'   : 'sin',
+                'fm'            : 2000,
+                'fc'            : 40000,
+                'agc_ref'       : 0.7,
+                'agc_alpha'     : 1.0,
+                'agc_window'    : 64,
+                'agc_bypass'    : False,
+                'agc_graph_mode': 'time',
+                'handle_pos'    : [(x*self.model.N/self.model.fs, y)
+                                   for (x,y) in [(0.1, 1.0), (0.4, 0.2), (0.5, 0.2), (0.9,1.0)]
+                                  ],
+            },
+            'AM envelope preservation' : {
+                'signal_mode'  : 'am',
+                'fm'           : 8000,
+                'fc'           : 80000,
+                'agc_ref'      : 0.4,
+                'agc_alpha'    : 0.9,
+                'agc_window'   : 256,
+                'agc_bypass'   : False,
+                'agc_graph_mode': 'time',
+                'handle_pos'    : [(x*self.model.N/self.model.fs, y)
+                                   for (x,y) in [(0.1, 1.0), (0.105, 0.1), (0.6, 0.1), (0.62,1.0)]
+                                  ],
+            },
+            'Packet preambles with QPSK' : {
+                'signal_mode'  : 'qpsk_bb',
+                'fm'           : 8000,
+                'fc'           : 80000,
+                'agc_ref'      : 0.7,
+                'agc_alpha'    : 0.5,
+                'agc_window'   : 64,
+                'agc_bypass'   : False,
+                'agc_graph_mode': 'time',
+                'handle_pos'    : [(x*self.model.N/self.model.fs, y)
+                                   for (x,y) in [(0.18, 0), (0.181, 1.0), (0.68, 1.0), (0.681,0)]
+                                  ],
+            },
+        }
+        self.init_state =  init_state
         view = view_template(init_state)
 
         # Make Dash app
@@ -118,6 +183,36 @@ class AgcDashController():
             return f'{int(f)} kHz'
 
         @app.callback(
+            [
+             Output('in-sig-type', 'value'),
+             Output('in-f-carrier', 'value'),
+             Output('in-f-data', 'value'),
+             Output('agc-ref', 'value'),
+             Output('agc-alpha', 'value'),
+             Output('agc-window', 'value'),
+             Output('agc-bypass', 'value'),
+             Output('agc-graph-mode', 'value'),
+             Output('new-env-preset', 'value'),
+            ],
+            [Input('preset-option', 'value')]
+        )
+        def set_to_preset(preset_name):
+
+            preset = self.init_state['presets'][preset_name]
+
+            # Return new GUI values
+            return (preset['signal_mode'],
+                    preset['fc'] / 1000,
+                    preset['fm'],
+                    preset['agc_ref'],
+                    preset['agc_alpha'],
+                    int(np.log2(preset['agc_window'])),
+                    preset['agc_bypass'],
+                    preset['agc_graph_mode'],
+                    str(preset['handle_pos']))
+
+
+        @app.callback(
             [Output('graph-inputs', 'figure'), Output('new-input-signal', 'children')],
             [Input('graph-inputs', 'relayoutData'),
              Input('btn-add-handle', 'n_clicks'),
@@ -125,15 +220,30 @@ class AgcDashController():
              Input('in-sig-type', 'value'),
              Input('in-f-carrier', 'value'),
              Input('in-f-data', 'value'),
+             Input('new-env-preset', 'value'),
              ],
             [State('graph-inputs', 'figure')])
-        def input_stage_callback(_,_btnadd,_btnrm,in_sig_type,in_f_carrier,in_data_rate,fig_in):
+        def input_stage_callback(_,_btnadd,_btnrm,in_sig_type,in_f_carrier,in_data_rate,env_preset, fig_in):
 
-            changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-            if 'btn-add-handle' in changed_id:
+            changed_ids = [p['prop_id'] for p in dash.callback_context.triggered]
+            if 'btn-add-handle' in changed_ids[0]:
                 add_envelope_handle(fig_in['layout']['shapes'], max(self.model.t))
-            if 'btn-rm-handle' in changed_id:
+            if 'btn-rm-handle' in changed_ids[0]:
                 rm_envelope_handle(fig_in['layout']['shapes'])
+            if any(map(lambda x: 'new-env-preset' in x, changed_ids)):
+                h_template = get_envelope_handle(fig_in['layout']['shapes'],0)
+                points = ast.literal_eval(env_preset)
+                if points:
+                    new_shapes = []
+                    for (i,(x,y)) in enumerate(points):
+                        p = dict(h_template)
+                        p.update({
+                            'name': 'envelope_'+str(i),
+                            'xanchor': x,
+                            'yanchor': y,
+                        })
+                        new_shapes.append(p)
+                    fig_in['layout']['shapes'] = new_shapes
 
             in_f_carrier = in_f_carrier*1000
             (ref_i,ref_q) = self.model.ref_signal(in_sig_type, in_f_carrier,in_data_rate)
@@ -221,4 +331,4 @@ class AgcDashController():
 
     def show(self,debug=False):
         mode = 'external' if debug else 'inline'
-        return self.app.run_server(mode=mode, host=ifaddresses('eth0')[AF_INET][0]['addr'], height=830)
+        return self.app.run_server(mode=mode, host=ifaddresses('eth0')[AF_INET][0]['addr'], height=930)
