@@ -142,10 +142,15 @@ dfForward
   -> DataFlow dom Bool Bool (Signed 26, Signed 26)
                             (UFixed 24 26)
 dfForward window ref alpha = dfPowDetect
+                             `seqDF` regDF
                              `seqDF` dfIntgDump window
+                             `seqDF` regDF
                              `seqDF` dfLogErr (resizeF <$> ref) alpha
+                             `seqDF` regDF
                              `seqDF` dfAccum
+                             `seqDF` regDF
                              `seqDF` dfAntilog
+                             `seqDF` regDF
                              `seqDF` dfSampleAndHold
 
 dfGainStage :: forall dom sig

@@ -236,8 +236,8 @@ simOutPower g1 g2 n =
       --out_gain = take 15000 $ simAgc (fromIntegral window) (ufToDouble ref) (ufToDouble alpha) (map (\(i,q)->(fromIntegral i, fromIntegral q)) inputSig)
       --out_pow = map (\(_,i,q)-> sqrt $ (i)**2 + (q)**2) out_gain
       ip x =
-               let ip = df (testBufferDF (SNat :: SNat 6000) `seqDF` throttleDF (SNat :: SNat 2) `seqDF` dfAgc (pure window) (pure ref) (pure alpha) (pure True))
-                   oR = (riseEvery (SNat :: SNat 4))
+               let ip = df (testBufferDF (SNat :: SNat 6000) `seqDF` throttleDF (SNat :: SNat 4) `seqDF` dfAgc (pure window) (pure ref) (pure alpha) (pure True))
+                   oR = (riseEvery (SNat :: SNat 3))
                    (y, oV, iR) = ip x (pure True) oR
                in bundle (y, oV, oR) :: Signal System ((UFixed 10 15, (Signed 16, Signed 16)), Bool, Bool)
       --outs = drop 1 . take (10000 + rec_time*(2^window))
