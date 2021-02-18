@@ -58,24 +58,21 @@ dfPowDetect = pureDF (uncurry powerDetector)
 
 {- Integrate and dump -}
 
-intgDumpPow2
-  :: forall dom window n . (HiddenClockResetEnable dom, KnownNat window, KnownNat n)
-  => Signal dom (Unsigned window) -> Signal dom (Unsigned n) -> Signal dom (Maybe (Unsigned n))
-intgDumpPow2 window x = mealy f initState (bundle (x, window))
-  where initState :: (Unsigned (2^window), Unsigned (2^window + n))
-        initState = (0,0)
-        f (0, acc) (x, window) = ( ( setBit zeroBits (fromIntegral window) - 1                     -- window counter
-                                         , resize x)                                                     -- accumulator
-                                       , Just . resize $ shiftR acc (fromIntegral (boundedSub window 0)) -- output
-                                       )
-        f (n, acc) (x, window) = ( ( n-1                                                           -- window counter
-                                         , acc + (resize x))                                             -- accumulator
-                                       , Nothing                                                         -- output
-                                       )
-
---dfIntgDump window = gatedToDF (\en x -> exposeEnable movAvg (toEnable en) window x)
-dfIntgDump window = gatedMaybeToDF (\en x -> exposeEnable intgDumpPow2 (toEnable en) window x)
-
+--dfIntgDump window = gatedToDF (\en x -> movAvg window x)
+dfIntgDump :: forall dom window n . (HiddenClockResetEnable dom, KnownNat window, KnownNat n)
+           => Signal dom (Unsigned window) -> DataFlow dom Bool Bool (Unsigned n) (Unsigned n)
+dfIntgDump window = liftDF (f window)
+  where f window x iV oR =
+          let iR = oR
+              iEn = iV .&&. iR
+              x' = regEn 0 iEn x
+              count :: Signal dom (Unsigned (2^window))
+              count = regEn 0 iEn $ mux (count .==. 0) (((\x -> setBit zeroBits (fromIntegral x)) <$> window) - 1) (count - 1)
+              acc :: Signal dom (Unsigned (2^n + n))
+              acc = regEn 0 iEn $ mux (count .==. 0) (resize <$> x') (acc + (resize <$> x'))
+              y = liftA2 (\x s -> resize $ shiftR x s) acc (fromIntegral <$> window)
+              oV = count .==. 0 .&&. iEn
+          in (y, oV, iR)
 
 {- Calculating log error -}
 
@@ -96,22 +93,30 @@ dfLogErr :: forall dom iAlpha fAlpha
          -> DataFlow dom Bool Bool (Unsigned 26) (SFixed 4 22)
 dfLogErr ref alpha = liftDF (f ref alpha)
   where f ref alpha x iV oR =
-          let en = iV .&&. oR
-              x' = regEn 0 en x
+          let iR = oR
+              iEn = iV .&&. iR
+              oV = last $ iterate d36 (register False) iEn
+              x' = regEn 0 iEn x                                      -- Only take data when valid and ready
               logX = log10 paramsVec eLn2sVec x'
               dif  = register 0 $ ((resizeF . toSF) <$> ref) - logX
               err  = register 0 $ ((toSF . resizeF) <$> alpha) * dif
-              oV = last $ iterate d36 (register False) en
-          in (regEn 0 oV err, register False oV, oR)
+          in (err, oV, iR)
+
 
 {- Wee accumulator -}
 
 dfAccum :: (HiddenClockResetEnable dom, KnownNat i, KnownNat f)
         => DataFlow dom Bool Bool (SFixed i f) (SFixed i f)
-dfAccum = gatedVToDF f
-  where f en err = let x' = liftA2 boundedAdd x err
-                       x  = regEn 0 en x'
-                   in (en, x')
+dfAccum = liftDF f
+  where f err iV oR =
+          let iR = oR
+              iEn = iV .&&. iR
+              err' = regEn 0 iEn err
+              oV = register False iEn
+              x' = liftA2 boundedAdd x err'
+              x  = regEn 0 iEn x'
+          in (x', oV, iR)
+
 
 {- Antilog / exponential conversion -}
 
@@ -120,17 +125,22 @@ dfAntilog :: forall dom
           => DataFlow dom Bool Bool (SFixed 4 22) (UFixed 24 26)
 dfAntilog = liftDF f
   where f x iV oR =
-          let en = iV .&&. oR
-              x' = regEn 0 en x
-              oV = last $ iterate d35 (register False) en
+          let iR = oR
+              iEn = iV .&&. iR
+              oV = last $ iterate d35 (register False) iEn
+              x' = regEn 0 iEn x
               y = register 0 $ resizeF <$> pow10 paramsVec kScaling eLn2sVec (resizeF <$> x') :: Signal dom (UFixed 24 26)
-          in (y, oV, oR)
+          in (y, oV, iR)
+
 
 dfSampleAndHold = liftDF f
   where f x iV oR =
-          let y = regEn 0 (iV) x
-              oV = register False (iV .&&. oR)
-          in (y, pure True, oR)
+          let iR = oR
+              iEn = iV -- .&&. iR
+              oV = register False iEn
+              y = regEn 0 iEn x
+          in (y, pure True, iR)
+
 
 {- Constructing the AGC loop -}
 
@@ -144,9 +154,12 @@ dfForward
 dfForward window ref alpha = dfPowDetect
                              `seqDF` dfIntgDump window
                              `seqDF` dfLogErr (resizeF <$> ref) alpha
+                             `seqDF` regDF
                              `seqDF` dfAccum
+                             `seqDF` regDF
                              `seqDF` dfAntilog
                              `seqDF` dfSampleAndHold
+                             `seqDF` regDF
 
 dfGainStage :: forall dom sig
             . (HiddenClockResetEnable dom, KnownNat sig)

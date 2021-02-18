@@ -34,25 +34,11 @@ refIntgDump n xs = let (a,b) = splitAt n xs
                       then window : refIntgDump n b
                       else []
 
-prop_IntgDump :: Unsigned 5 -> [Unsigned 26] -> Bool
-prop_IntgDump w xs =
-  let exp = refIntgDump (2^w) $ map fromIntegral xs
-      act = map fromIntegral . drop 1 . catMaybes $
-            simulate @System (intgDumpPow2 (pure w)) (cycle xs)
-  in xs == [] || allEqual exp act
-
 prop_IntgDumpDf :: Unsigned 5 -> [Unsigned 26] -> Bool
 prop_IntgDumpDf w xs =
   let exp = refIntgDump (2^w) $ map fromIntegral xs
-      act = map fromIntegral . drop 1 . map (\(x,_,_)->x) . filter (\(_,v,r)->v&&r) $
-            simulate @System (\x -> bundle $ df (testBufferDF (SNat :: SNat 10000) `seqDF` throttleDF (SNat :: SNat 4) `seqDF` dfIntgDump (pure w)) x (pure True) (riseEvery (SNat :: SNat 3)) ) (cycle xs)
-  in xs == [] || length xs > 10000 || allEqual exp act
-
-prop_ToIntgDumpDf :: Unsigned 5 -> [(Signed 26, Signed 26)] -> Bool
-prop_ToIntgDumpDf w xs =
-  let exp = refIntgDump (2^w) . map (round . uncurry refPowerDetector) $ map (\(i,q) -> (fromIntegral i, fromIntegral q)) xs
-      act = map fromIntegral . drop 1 . map (\(x,_,_)->x) . filter (\(_,v,r)->v&&r) $
-            simulate @System (\x -> bundle $ df (testBufferDF (SNat :: SNat 10000) `seqDF` throttleDF (SNat :: SNat 4) `seqDF` dfPowDetect `seqDF` dfIntgDump (pure w)) x (pure True) (riseEvery (SNat :: SNat 3)) ) (cycle xs)
+      act = map fromIntegral . drop 2 . map (\(x,_,_)->x) . filter (\(_,v,r)->v&&r) $
+            simulate @System (\x -> bundle $ df (testBufferDF (SNat :: SNat 10000) `seqDF` throttleDF (SNat :: SNat 4) `seqDF` dfIntgDump (pure w)) x (pure True) (riseEvery (SNat :: SNat 3)) ) (cycle $ replicate (2^w - 1) 0 ++ xs)
   in xs == [] || length xs > 10000 || allEqual exp act
 
 {- We are equal to our reference integrate and dump function for all window sizes
