@@ -50,7 +50,7 @@ mul13by32 x =
   in resize $ shiftR x13 5
 
 powerDetector :: KnownNat n => Signed n -> Signed n -> Unsigned n
-powerDetector i q = fromIntegral . mul61by64 $ (max i' q') `add` mul13by32 (abs $ min i' q')
+powerDetector i q = fromIntegral $ mul61by64 (max i' q') `add` mul13by32 (min i' q')
   where i' = abs i
         q' = abs q
 
