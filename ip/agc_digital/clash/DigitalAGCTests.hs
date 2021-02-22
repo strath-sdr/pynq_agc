@@ -18,10 +18,9 @@ prop_PowerDetector :: Signed 26 -> Signed 26 -> Bool
 prop_PowerDetector i q =
   let exp = refPowerDetector (fromIntegral i) (fromIntegral q)
       act = fromIntegral $ powerDetector i q
-      percent_margin = 5
+      percent_margin = 4.7
       error = max exp act - min exp act
-      isExtreme x = abs x < 50 || abs x > (maxBound-50)
-  in isExtreme i || isExtreme q || error <= percent_margin / 100 * exp
+  in error <= percent_margin / 100 * exp
 {-
 Above test shows that as long as the signal above 0.3% of the full range, we can expect less than 6% error.
 -}
