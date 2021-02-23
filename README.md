@@ -3,48 +3,68 @@
 # Automatic Gain Control with PNYQ
 
 ## Introduction
-Add a brief introduction that describes the repository and any associated work i.e. papers, other datasets.
+
+We present a digital Automatic Gain Control (AGC) circuit with interactive
+control of it's parameters. This is (currently!) a purely digital loopback
+system, so no extra hardware is required. We'll generate various input signals,
+explore some interesting effects of the AGC algorithm, and practice tweaking our
+parameters for best performance. The design of this AGC example will be
+explored, featuring various hardware arithmetic approximations for power
+estimation, logarithms and exponentiation.
 
 ![AGC widget in action](./demonstration.gif)
 
 ## Quick Start
-This repository is only compatible with [PYNQ images v2.6 and greater](https://github.com/Xilinx/PYNQ/releases) for the [ZCU111](https://www.xilinx.com/products/boards-and-kits/zcu111.html) and the [RFSoC2x2]().
 
-Connect to the board with **Jupyter Lab** in a browser (not Jupyter Notebook) by using a web browser `https://<IP address>:9090/lab`.
+This repository is compatible with [PYNQ images v2.6 and
+greater](https://github.com/Xilinx/PYNQ/releases) for the
+[Pynq-Z2](https://www.tul.com.tw/productspynq-z2.html),
+[ZCU111](https://www.xilinx.com/products/boards-and-kits/zcu111.html) and the
+[RFSoC2x2]().
+
+Connect to the board with **Jupyter Lab** in a browser (not Jupyter Notebook) by
+using a web browser `https://<IP address>:9090/lab`.
 
 Open a terminal in Jupyter Lab and run the following command:
-```sh
-pip3 install git+https://github.com/strath-sdr/RFSoC-PYNQ-Template
+
+```console
+root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.2/pynq_agc.tar.gz
 ```
 
-The notebook should now be available in the `rfstrath` folder in your Jupyter Workspace.
-It is important that you use the Chrome web browser if possible as rendering performance is important.
+> Note this link won't work on the board until the repo is public. For now,
+> we're using my copy from
+> `https://cramsay.co.uk/content/images/2021/02/pynq_agc_v0.2.tar.gz`
 
-## ZCU111 Setup
-Describe the setup for the ZCU111.
+The notebook should now be available in the `pynq_agc` folder in your Jupyter
+Workspace.
 
-## RFSoC2x2 Setup
-Describe the setup for the RFSoC2x2.
+## Building from Source
 
-## Using the Project Files
-The following software is required to use the project files in this repository.
-- Vivado Design Suite 2020.1
-- System Generator for DSP
-- MATLAB 2020a
+Our hardware design is written in [Clash](https://clash-lang.org/) and
+implemented with Vivado 2020.1.
 
-### Vivado
-This project can be built with Vivado from the command line. Open Vivado 2020.1 and execute the following into the tcl console:
-```sh
-cd /<repository-location>/StrathSDR-RFSoC-Template/boards/<board-name>/
-make project
-make block_design
-make bitstream
+On Linux the only prerequisite is having Vivado 2020.1 installed and in your
+`PATH` variable. We supply a [nix shell](https://nixos.org/) which will handle
+the rest of the dependencies for you.
+
+If you don't already have the nix package manager, install it with:
+
+```console
+sdr@strath$ curl -L https://nixos.org/nix/install | sh
 ```
 
-Alternatively, you can run the entire project build by executing the following into the tcl console:
-```sh
-make all
+To rebuild our project, we just need to source our nix shell (this might take a
+while to run the first time --- it's gathering all of the software we need!) and
+run `make`.
+
+```console
+sdr@strath$ nix-shell
+sdr@strath$ make
 ```
+
+The final pip-installable archive is found at `./pynq_agc.tar.gz`
+
+For Windows (untested), you will need to [manually install Clash](https://clash-lang.org/install/windows/) and all of the Haskell packages listed in `shell.nix`. Alternatively you can use the Linux instructions with the Windows Subsystem for Linux (WSL).
 
 ## License
-[BSD 3-Clause](/LICENSE)
+[BSD 3-Clause](./LICENSE)
