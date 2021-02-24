@@ -1,6 +1,6 @@
-<img src="banner.png" width="100%">
+<img src="notebooks/assets/banner.png" width="100%">
 
-# Automatic Gain Control with PNYQ
+# Automatic Gain Control with PYNQ
 
 ## Introduction
 
