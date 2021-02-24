@@ -1,13 +1,16 @@
 module AnalogueAGC where
 
 import Clash.Prelude
+import CalibrationLUT (lutData)
 
 data GainState = GLow | GHigh | GOk
 
-type TVc   = Unsigned 6
+type TVc   = Unsigned 16
+type TLutAddr = Unsigned 11
 type TGain = UFixed 2 16
 type TGain' = Unsigned 18
 type TCycles = Unsigned 32
+
 createDomain vXilinxSystem{vName="XilDom", vResetPolarity=ActiveLow}
 
 parseThresholds :: Bool {-upper-} -> Bool {-lower-} -> GainState
@@ -31,21 +34,14 @@ pulseGen n = count .==. 0
                      n
                      (count-1)
 
-approxdB :: TGain -> TVc
+approxdB :: TGain -> TLutAddr
 approxdB g = db'
   where db = sub (mul a g) a
-        a = $$(fLit (20.0 / logBase 2 10 * (64 / 6))) :: UFixed 7 11
-        db' = unUF (resizeF db :: UFixed 6 0)
+        a = $$(fLit (20.0 / logBase 2 10 * (2**11 / 6.03))) :: UFixed 12 6 -- 18 to fit in DSP48, Extra scaling factor to get it to fit in our 11 bit output
+        db' = unUF (resizeF db :: UFixed 11 0)
 
-calibration :: (HiddenClockResetEnable dom, KnownNat n) => Signal dom (Unsigned (6+n)) -> Signal dom TVc
-calibration = romPow2 lut . fmap (truncateLSBs)
-  where lut :: Vec (2^6) (Unsigned 6)
-        lut =   0 :>   1 :>   6 :>   8 :>  10 :>  12 :>  13 :>  14 :>  15 :>  16 :>  17 :>
-               18 :>  19 :>  19 :>  20 :>  20 :>  21 :>  22 :>  22 :>  23 :>  23 :>  24 :>
-               24 :>  24 :>  25 :>  25 :>  26 :>  26 :>  27 :>  27 :>  28 :>  28 :>  28 :>
-               29 :>  29 :>  30 :>  30 :>  30 :>  31 :>  31 :>  32 :>  32 :>  33 :>  33 :>
-               34 :>  34 :>  35 :>  35 :>  36 :>  36 :>  37 :>  38 :>  38 :>  39 :>  40 :>
-               41 :>  42 :>  43 :>  44 :>  46 :>  48 :>  51 :>  55 :>  63 :>  Nil
+calibration :: (HiddenClockResetEnable dom, KnownNat n) => Signal dom (Unsigned (11+n)) -> Signal dom (Unsigned 16)
+calibration = romPow2 lutData . fmap (truncateLSBs)
 
 agc
   :: (HiddenClockResetEnable dom)
@@ -61,7 +57,7 @@ agc atkStep atkN decStep decN maxG thU thL = vc
   where
   dir = liftA2 parseThresholds thU thL
   n = mux (isAtk <$> dir) atkN decN
-  en = pulseGen n
+  en = pulseGen $ delay 0 n
   vc = calibration $ approxdB <$> gain_lin
   gain_lin  = regEn 1 en (inc <$> dir <*> atkStep <*> decStep <*> maxG <*> gain_lin)
   inc s up down limit g = case s of
@@ -71,6 +67,34 @@ agc atkStep atkN decStep decN maxG thU thL = vc
 
 gateOutput :: Applicative f => a -> f Bool -> f a -> f a
 gateOutput a en dut = mux en dut (pure a)
+
+data PModState = PWritingLow  (Unsigned 16) (Index 16)
+               | PWritingHigh (Unsigned 16) (Index 16)
+               | PWaitLow
+               | PWaitHigh
+               | PLoadLow
+               | PLoadHigh
+               deriving (Generic, NFDataX)
+
+writeDA3 :: HiddenClockResetEnable dom
+         => Signal dom (Unsigned 16)
+         -> Signal dom (Bit , Bit , Bit, Bit)
+         --            (SCLK, DATA, ~CS, ~LDAC)
+writeDA3 = moore fNext fOut PWaitLow
+  where
+  fNext (PWritingLow  x i) _ = PWritingHigh x i
+  fNext (PWritingHigh x i) _ = if i == 0 then PWaitLow else PWritingLow x (i-1)
+  fNext (PWaitLow        ) _ = PWaitHigh
+  fNext (PWaitHigh       ) _ = PLoadLow
+  fNext (PLoadLow        ) _ = PLoadHigh
+  fNext (PLoadHigh       ) x = PWritingLow x maxBound
+
+  fOut (PWritingLow  x i) = (0, boolToBit . testBit x $ fromIntegral i, 0, 1)
+  fOut (PWritingHigh x i) = (1, boolToBit . testBit x $ fromIntegral i, 0, 1)
+  fOut (PWaitLow        ) = (0, 0                                     , 1, 1)
+  fOut (PWaitHigh       ) = (1, 0                                     , 1, 1)
+  fOut (PLoadLow        ) = (0, 0                                     , 1, 0)
+  fOut (PLoadHigh       ) = (1, 0                                     , 1, 0)
 
 topLevel
   :: Clock  XilDom
@@ -83,14 +107,18 @@ topLevel
   -> Signal XilDom TGain'
   -> Signal XilDom Bool
   -> Signal XilDom Bool
-  -> Signal XilDom TVc
+  -> Signal XilDom (TVc, Bit, Bit, Bit, Bit)
 topLevel clk rst en atkStep atkN decStep decN maxG thU thL =
-  exposeClockResetEnable (gateOutput 0 (fromEnable en) $
-                          agc  (uf d16 <$> atkStep) atkN
-                               (uf d16 <$> decStep) decN
-                               (uf d16 <$> maxG)
-                               thU thL)
-  clk rst (toEnable $ pure True)
+  exposeClockResetEnable (
+    let (sclk, din, cs, ldac) = unbundle $ writeDA3 vc
+        vc = gateOutput 0 (fromEnable en) $
+               agc (uf d16 <$> atkStep) atkN
+                   (uf d16 <$> decStep) decN
+                   (uf d16 <$> maxG)
+                   thU thL
+    in bundle (vc, sclk, din, cs, ldac)
+  ) clk rst (toEnable $ pure True)
+  where
 
 {-# ANN topLevel
   (Synthesize
@@ -106,5 +134,11 @@ topLevel clk rst en atkStep atkN decStep decN maxG thU thL =
                  , PortName "thres_high"
                  , PortName "thres_low"
                  ]
-    , t_output = PortName "gain"
+    , t_output = PortProduct ""
+                   [ PortName "gain"
+                   , PortName "da3_sclk"
+                   , PortName "da3_data"
+                   , PortName "da3_ncs"
+                   , PortName "da3_nldac"
+                   ]
     }) #-}
