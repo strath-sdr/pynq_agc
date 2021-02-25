@@ -23,6 +23,10 @@ set_param general.maxThreads 2
 set_property  ip_repo_paths  ../../ip [current_project]
 update_ip_catalog
 
+# Add constraints
+add_files -fileset constrs_1 -norecurse ./constraints.xdc
+
+
 # Generate board design
 source ./$bd_name.tcl
 
