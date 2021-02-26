@@ -28,12 +28,8 @@ using a web browser `https://<IP address>:9090/lab`.
 Open a terminal in Jupyter Lab and run the following command:
 
 ```console
-root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.2/pynq_agc.tar.gz
+root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.3/pynq_agc.tar.gz
 ```
-
-> Note this link won't work on the board until the repo is public. For now,
-> we're using my copy from
-> `https://cramsay.co.uk/content/images/2021/02/pynq_agc_v0.2.tar.gz`
 
 The notebook should now be available in the `pynq_agc` folder in your Jupyter
 Workspace.
