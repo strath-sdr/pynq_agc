@@ -5,7 +5,7 @@
 ## Introduction
 
 We present a digital Automatic Gain Control (AGC) circuit with interactive
-control of it's parameters. This is (currently!) a purely digital loopback
+control of its parameters. This is (currently!) a purely digital loopback
 system, so no extra hardware is required. We'll generate various input signals,
 explore some interesting effects of the AGC algorithm, and practice tweaking our
 parameters for best performance. The design of this AGC example will be
