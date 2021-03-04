@@ -34,12 +34,6 @@ pulseGen n = count .==. 0
                      n
                      (count-1)
 
-approxdB :: TGain -> TLutAddr
-approxdB g = db'
-  where db = sub (mul a g) a
-        a = $$(fLit (20.0 / logBase 2 10 * (2**11 / 6.03))) :: UFixed 12 6 -- 18 to fit in DSP48, Extra scaling factor to get it to fit in our 11 bit output
-        db' = unUF (resizeF db :: UFixed 11 0)
-
 calibration :: (HiddenClockResetEnable dom, KnownNat n) => Signal dom (Unsigned (11+n)) -> Signal dom (Unsigned 16)
 calibration = romPow2 lutData . fmap (truncateLSBs)
 
@@ -58,7 +52,7 @@ agc atkStep atkN decStep decN maxG thU thL = vc
   dir = liftA2 parseThresholds thU thL
   n = mux (isAtk <$> dir) atkN decN
   en = pulseGen $ delay 0 n
-  vc = calibration $ approxdB <$> gain_lin
+  vc = calibration $ unUF <$> gain_lin
   gain_lin  = regEn 1 en (inc <$> dir <*> atkStep <*> decStep <*> maxG <*> gain_lin)
   inc s up down limit g = case s of
                             GLow  -> satUpper limit $ satAdd SatBound g up
