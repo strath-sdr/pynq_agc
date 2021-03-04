@@ -124,6 +124,7 @@ set bCheckIPsPassed 1
 set bCheckIPs 1
 if { $bCheckIPs == 1 } {
    set list_check_ips "\ 
+xilinx.com:ip:clk_wiz:6.0\
 xilinx.com:ip:proc_sys_reset:5.0\
 xilinx.com:ip:zynq_ultra_ps_e:3.3\
 user.org:user:agc_v1_0:1.0\
@@ -720,6 +721,19 @@ proc create_root_design { parentCell } {
   # Create instance: baseband_agc
   create_hier_cell_baseband_agc [current_bd_instance .] baseband_agc
 
+  # Create instance: clk_wiz_256, and set properties
+  set clk_wiz_256 [ create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_256 ]
+  set_property -dict [ list \
+   CONFIG.CLKOUT1_JITTER {127.617} \
+   CONFIG.CLKOUT1_PHASE_ERROR {244.970} \
+   CONFIG.CLKOUT1_REQUESTED_OUT_FREQ {256} \
+   CONFIG.MMCM_CLKFBOUT_MULT_F {122.875} \
+   CONFIG.MMCM_CLKOUT0_DIVIDE_F {6.000} \
+   CONFIG.MMCM_DIVCLK_DIVIDE {8} \
+   CONFIG.RESET_PORT {resetn} \
+   CONFIG.RESET_TYPE {ACTIVE_LOW} \
+ ] $clk_wiz_256
+
   # Create instance: proc_sys_reset_0, and set properties
   set proc_sys_reset_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 proc_sys_reset_0 ]
 
@@ -1098,10 +1112,10 @@ proc create_root_design { parentCell } {
    CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR1 {1} \
    CONFIG.PSU__CRL_APB__PL0_REF_CTRL__FREQMHZ {75} \
    CONFIG.PSU__CRL_APB__PL0_REF_CTRL__SRCSEL {IOPLL} \
-   CONFIG.PSU__CRL_APB__PL1_REF_CTRL__ACT_FREQMHZ {299.997009} \
-   CONFIG.PSU__CRL_APB__PL1_REF_CTRL__DIVISOR0 {5} \
+   CONFIG.PSU__CRL_APB__PL1_REF_CTRL__ACT_FREQMHZ {99.999001} \
+   CONFIG.PSU__CRL_APB__PL1_REF_CTRL__DIVISOR0 {15} \
    CONFIG.PSU__CRL_APB__PL1_REF_CTRL__DIVISOR1 {1} \
-   CONFIG.PSU__CRL_APB__PL1_REF_CTRL__FREQMHZ {300} \
+   CONFIG.PSU__CRL_APB__PL1_REF_CTRL__FREQMHZ {100} \
    CONFIG.PSU__CRL_APB__PL1_REF_CTRL__SRCSEL {IOPLL} \
    CONFIG.PSU__CRL_APB__PL2_REF_CTRL__DIVISOR0 {4} \
    CONFIG.PSU__CRL_APB__PL2_REF_CTRL__DIVISOR1 {1} \
@@ -1415,8 +1429,9 @@ proc create_root_design { parentCell } {
   connect_bd_net -net rf_agc_da3_nldac_0 [get_bd_ports da3_nldac] [get_bd_pins rf_agc/da3_nldac]
   connect_bd_net -net rf_agc_da3_sclk_0 [get_bd_ports da3_sclk] [get_bd_pins rf_agc/da3_sclk]
   connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins axi_interconnect_0/ACLK] [get_bd_pins axi_interconnect_0/M00_ACLK] [get_bd_pins axi_interconnect_0/M01_ACLK] [get_bd_pins axi_interconnect_0/S00_ACLK] [get_bd_pins baseband_agc/clk] [get_bd_pins proc_sys_reset_0/slowest_sync_clk] [get_bd_pins rf_agc/clk_slow] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihp0_fpd_aclk]
-  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk1 [get_bd_pins rf_agc/clk_fast] [get_bd_pins zynq_ultra_ps_e_0/maxihpm1_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk1] [get_bd_pins zynq_ultra_ps_e_0/saxihp1_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp2_fpd_aclk]
-  connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins baseband_agc/ext_reset_in] [get_bd_pins proc_sys_reset_0/ext_reset_in] [get_bd_pins rf_agc/ARESETN] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0]
+  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk1 [get_bd_pins clk_wiz_256/clk_out1] [get_bd_pins rf_agc/clk_fast] [get_bd_pins zynq_ultra_ps_e_0/maxihpm1_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp1_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/saxihp2_fpd_aclk]
+  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk2 [get_bd_pins clk_wiz_256/clk_in1] [get_bd_pins zynq_ultra_ps_e_0/pl_clk1]
+  connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins baseband_agc/ext_reset_in] [get_bd_pins clk_wiz_256/resetn] [get_bd_pins proc_sys_reset_0/ext_reset_in] [get_bd_pins rf_agc/ARESETN] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0]
 
   # Create address segments
   assign_bd_address -offset 0xA0000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs baseband_agc/agc/s00_axi/reg0] -force
