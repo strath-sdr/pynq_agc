@@ -1,0 +1,6 @@
+*.dyn*
+*.hi
+*.o
+vivado*
+ip
+clash/vhdl
