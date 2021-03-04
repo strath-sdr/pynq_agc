@@ -5,11 +5,11 @@ import CalibrationLUT (lutData)
 
 data GainState = GLow | GHigh | GOk
 
-type TVc   = Unsigned 16
+type TVc      = Unsigned 16
 type TLutAddr = Unsigned 11
-type TGain = UFixed 2 16
-type TGain' = Unsigned 18
-type TCycles = Unsigned 32
+type TGain    = UFixed 0 18
+type TGain'   = Unsigned 18
+type TCycles  = Unsigned 32
 
 createDomain vXilinxSystem{vName="XilDom", vResetPolarity=ActiveLow}
 
@@ -28,11 +28,10 @@ truncateLSBs = unpack . v2bv . takeI . bv2v . pack
 satUpper limit x = if (x >= limit) then limit else x
 satLower limit x = if (x <= limit) then limit else x
 
-pulseGen n = count .==. 0
+pulseGen n = register False isZero
   where count = delay 0 count'
-        count' = mux (count .==. 0)
-                     n
-                     (count-1)
+        count' = mux isZero n (count-1)
+        isZero = count .==. 0
 
 calibration :: (HiddenClockResetEnable dom, KnownNat n) => Signal dom (Unsigned (11+n)) -> Signal dom (Unsigned 16)
 calibration = romPow2 lutData . fmap (truncateLSBs)
@@ -53,10 +52,10 @@ agc atkStep atkN decStep decN maxG thU thL = vc
   n = mux (isAtk <$> dir) atkN decN
   en = pulseGen $ delay 0 n
   vc = calibration $ unUF <$> gain_lin
-  gain_lin  = regEn 1 en (inc <$> dir <*> atkStep <*> decStep <*> maxG <*> gain_lin)
+  gain_lin  = regEn 0 en (inc <$> dir <*> atkStep <*> decStep <*> maxG <*> gain_lin)
   inc s up down limit g = case s of
                             GLow  -> satUpper limit $ satAdd SatBound g up
-                            GHigh -> satLower 1     $ satSub SatBound g down
+                            GHigh -> satSub SatBound g down
                             GOk   -> g
 
 gateOutput :: Applicative f => a -> f Bool -> f a -> f a
@@ -106,9 +105,9 @@ topLevel clk rst en atkStep atkN decStep decN maxG thU thL =
   exposeClockResetEnable (
     let (sclk, din, cs, ldac) = unbundle $ writeDA3 vc
         vc = gateOutput 0 (fromEnable en) $
-               agc (uf d16 <$> atkStep) atkN
-                   (uf d16 <$> decStep) decN
-                   (uf d16 <$> maxG)
+               agc (uf d18 <$> atkStep) atkN
+                   (uf d18 <$> decStep) decN
+                   (uf d18 <$> maxG)
                    thU thL
     in bundle (vc, sclk, din, cs, ldac)
   ) clk rst (toEnable $ pure True)
