@@ -465,8 +465,8 @@ begin
         clk => S_AXI_ACLK,
         aresetn => S_AXI_ARESETN,
         -- AXI signals
-        go      => slv_reg0(31 downto 0),
-        n       => slv_reg1(0),
+        n       => slv_reg0(31 downto 0),
+        go      => slv_reg1(0),
 
         -- Non-axi signals
         S_AXIS_TX_TDATA  => S_AXIS_TX_TDATA,

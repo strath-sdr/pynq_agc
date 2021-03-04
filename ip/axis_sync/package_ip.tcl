@@ -18,6 +18,10 @@ ipx::package_project -root_dir ./ip -vendor user.org -library user -taxonomy /Us
 ipx::unload_core ./ip/component.xml
 ipx::edit_ip_in_project -upgrade true -name tmp_edit_project -directory ./ip ./ip/component.xml
 update_compile_order -fileset sources_1
+ipx::associate_bus_interfaces -busif M_AXIS_RX -clock s00_axi_aclk [ipx::current_core]
+ipx::associate_bus_interfaces -busif M_AXIS_TX -clock s00_axi_aclk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXIS_RX -clock s00_axi_aclk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXIS_TX -clock s00_axi_aclk [ipx::current_core]
 set_property core_revision 1 [ipx::current_core]
 set_property supported_families {zynquplus Production qzynq Beta zynquplus Beta azynq Beta zynq Beta} [ipx::current_core]
 ipx::create_xgui_files [ipx::current_core]
