@@ -16,12 +16,9 @@ entity analogueAgc_v1_0 is
 	);
 	port (
 		-- Users to add ports here
+		gain : out std_logic_vector(5 downto 0);
     thres_high : in std_logic;
     thres_low : in std_logic;
-    da3_sclk   : out std_logic;
-    da3_data   : out std_logic;
-    da3_ncs    : out std_logic;
-    da3_nldac   : out std_logic;
 
 		-- User ports ends
 		-- Do not modify the ports beyond this line
@@ -82,12 +79,9 @@ architecture arch_imp of analogueAgc_v1_0 is
 		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic;
+		gain : out std_logic_vector(5 downto 0);
     thres_high : in std_logic;
-    thres_low : in std_logic;
-    da3_sclk   : out std_logic;
-    da3_data   : out std_logic;
-    da3_ncs    : out std_logic;
-    da3_nldac   : out std_logic
+    thres_low : in std_logic
 		);
 	end component analogueAgc_axi_wrapper;
 
@@ -121,12 +115,9 @@ analogueAgc_v1_0_S00_AXI_inst : analogueAgc_axi_wrapper
 		S_AXI_RRESP	=> s00_axi_rresp,
 		S_AXI_RVALID	=> s00_axi_rvalid,
 		S_AXI_RREADY	=> s00_axi_rready,
+    gain => gain,
     thres_high => thres_high,
-    thres_low  => thres_low,
-    da3_sclk => da3_sclk,
-    da3_data => da3_data,
-    da3_ncs  => da3_ncs,
-    da3_nldac => da3_nldac
+    thres_low  => thres_low
 	);
 
 	-- Add user logic here

@@ -18,12 +18,9 @@ entity analogueAgc_axi_wrapper is
 	);
 	port (
 		-- Users to add ports here
+		gain : out std_logic_vector(5 downto 0);
     thres_high : in std_logic;
     thres_low : in std_logic;
-    da3_sclk   : out std_logic;
-    da3_data   : out std_logic;
-    da3_ncs    : out std_logic;
-    da3_nldac   : out std_logic;
 
 		-- User ports ends
 		-- Do not modify the ports beyond this line
@@ -129,6 +126,7 @@ architecture arch_imp of analogueAgc_axi_wrapper is
 	signal byte_index	: integer;
 	signal aw_en	: std_logic;
 
+  signal gain_sig : std_logic_vector(5 downto 0);
 	component analogueAgc is
       port(-- clock
         clk         : in analogueagc_types.clk_xildom;
@@ -142,11 +140,7 @@ architecture arch_imp of analogueAgc_axi_wrapper is
         max_g       : in unsigned(17 downto 0);
         thres_high  : in std_logic;
         thres_low   : in std_logic;
-        gain       : out unsigned(15 downto 0);
-        da3_sclk   : out std_logic;
-        da3_data   : out std_logic;
-        da3_ncs    : out std_logic;
-        da3_nldac   : out std_logic);
+        gain        : out unsigned(5 downto 0));
     end component;
 
 begin
@@ -249,7 +243,7 @@ begin
 	      slv_reg2 <= (others => '0');
 	      slv_reg3 <= (others => '0');
 	      slv_reg4 <= (others => '0');
-	      --slv_reg5 <= (others => '0');
+	      slv_reg5 <= (others => '0');
 	      slv_reg6 <= (others => '0');
 	    else
 	      loc_addr := axi_awaddr(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
@@ -300,8 +294,7 @@ begin
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes
 	                -- slave registor 4
-	                --slv_reg5(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
-                  --reg5 should be read-only
+	                slv_reg5(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
 	              end if;
 	            end loop;
 	          when b"110" =>
@@ -318,7 +311,7 @@ begin
 	            slv_reg2 <= slv_reg2;
 	            slv_reg3 <= slv_reg3;
 	            slv_reg4 <= slv_reg4;
-	            --slv_reg5 <= slv_reg5;
+	            slv_reg5 <= slv_reg5;
 	            slv_reg6 <= slv_reg6;
 	        end case;
 	      end if;
@@ -426,7 +419,8 @@ begin
 	      when b"101" =>
 	        reg_data_out <= slv_reg5;
 	      when b"110" =>
-	        reg_data_out <= slv_reg6;
+	        reg_data_out(5 downto 0) <= gain_sig;
+          reg_data_out(31 downto 6) <= (others => '0');
 	      when others =>
 	        reg_data_out  <= (others => '0');
 	    end case;
@@ -455,7 +449,7 @@ begin
     IP_CORE: analogueAgc port map (
         clk => S_AXI_ACLK,
         aresetn => S_AXI_ARESETN,
-        en  => slv_reg6(0),
+        en  => slv_reg5(0),
         -- AXI signals
         atk_step    => unsigned(slv_reg0(17 downto 0)),
         atk_n       => unsigned(slv_reg1(31 downto 0)),
@@ -464,14 +458,12 @@ begin
         max_g       => unsigned(slv_reg4(17 downto 0)),
 
         -- Non-axi signals
-        std_logic_vector(gain) => slv_reg5(15 downto 0),
+        std_logic_vector(gain) => gain_sig,
         thres_high => thres_high,
-        thres_low  => thres_low,
-        da3_sclk => da3_sclk,
-        da3_data => da3_data,
-        da3_ncs  => da3_ncs,
-        da3_nldac => da3_nldac
+        thres_low  => thres_low
         );
+
+  gain <= gain_sig;
 	-- User logic ends
 
 end arch_imp;

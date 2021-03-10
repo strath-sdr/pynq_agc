@@ -1,11 +1,10 @@
 module AnalogueAGC where
 
 import Clash.Prelude
-import CalibrationLUT (lutData)
 
 data GainState = GLow | GHigh | GOk
 
-type TVc      = Unsigned 16
+type TVc      = Unsigned 6
 type TLutAddr = Unsigned 11
 type TGain    = UFixed 0 18
 type TGain'   = Unsigned 18
@@ -33,8 +32,27 @@ pulseGen n = register False isZero
         count' = mux isZero n (count-1)
         isZero = count .==. 0
 
-calibration :: (HiddenClockResetEnable dom, KnownNat n) => Signal dom (Unsigned (11+n)) -> Signal dom (Unsigned 16)
+calibration :: (HiddenClockResetEnable dom, KnownNat n) => Signal dom (Unsigned (6+n)) -> Signal dom (Unsigned 6)
 calibration = romPow2 lutData . fmap (truncateLSBs)
+  where
+  lutData :: Vec 64 (Unsigned 6)
+  lutData = map unpack $
+            0b000000 :> 0b001111 :> 0b010010 :> 0b010100 :>
+            0b010110 :> 0b010111 :> 0b011000 :> 0b011001 :>
+            0b011010 :> 0b011011 :> 0b011011 :> 0b011100 :>
+            0b011100 :> 0b011101 :> 0b011101 :> 0b011110 :>
+            0b011110 :> 0b011111 :> 0b011111 :> 0b100000 :>
+            0b100000 :> 0b100000 :> 0b100001 :> 0b100001 :>
+            0b100001 :> 0b100010 :> 0b100010 :> 0b100010 :>
+            0b100011 :> 0b100011 :> 0b100011 :> 0b100100 :>
+            0b100100 :> 0b100100 :> 0b100101 :> 0b100101 :>
+            0b100101 :> 0b100110 :> 0b100110 :> 0b100110 :>
+            0b100111 :> 0b100111 :> 0b101000 :> 0b101000 :>
+            0b101000 :> 0b101001 :> 0b101001 :> 0b101010 :>
+            0b101010 :> 0b101010 :> 0b101011 :> 0b101011 :>
+            0b101100 :> 0b101101 :> 0b101101 :> 0b101110 :>
+            0b101111 :> 0b110000 :> 0b110001 :> 0b110010 :>
+            0b110011 :> 0b110110 :> 0b111001 :> 0b111111 :> Nil
 
 agc
   :: (HiddenClockResetEnable dom)
@@ -61,34 +79,6 @@ agc atkStep atkN decStep decN maxG thU thL = vc
 gateOutput :: Applicative f => a -> f Bool -> f a -> f a
 gateOutput a en dut = mux en dut (pure a)
 
-data PModState = PWritingLow  (Unsigned 16) (Index 16)
-               | PWritingHigh (Unsigned 16) (Index 16)
-               | PWaitLow
-               | PWaitHigh
-               | PLoadLow
-               | PLoadHigh
-               deriving (Generic, NFDataX)
-
-writeDA3 :: HiddenClockResetEnable dom
-         => Signal dom (Unsigned 16)
-         -> Signal dom (Bit , Bit , Bit, Bit)
-         --            (SCLK, DATA, ~CS, ~LDAC)
-writeDA3 = moore fNext fOut PWaitLow
-  where
-  fNext (PWritingLow  x i) _ = PWritingHigh x i
-  fNext (PWritingHigh x i) _ = if i == 0 then PWaitLow else PWritingLow x (i-1)
-  fNext (PWaitLow        ) _ = PWaitHigh
-  fNext (PWaitHigh       ) _ = PLoadLow
-  fNext (PLoadLow        ) _ = PLoadHigh
-  fNext (PLoadHigh       ) x = PWritingLow x maxBound
-
-  fOut (PWritingLow  x i) = (0, boolToBit . testBit x $ fromIntegral i, 0, 1)
-  fOut (PWritingHigh x i) = (1, boolToBit . testBit x $ fromIntegral i, 0, 1)
-  fOut (PWaitLow        ) = (0, 0                                     , 1, 1)
-  fOut (PWaitHigh       ) = (1, 0                                     , 1, 1)
-  fOut (PLoadLow        ) = (0, 0                                     , 1, 0)
-  fOut (PLoadHigh       ) = (1, 0                                     , 1, 0)
-
 topLevel
   :: Clock  XilDom
   -> Reset  XilDom
@@ -100,18 +90,15 @@ topLevel
   -> Signal XilDom TGain'
   -> Signal XilDom Bool
   -> Signal XilDom Bool
-  -> Signal XilDom (TVc, Bit, Bit, Bit, Bit)
+  -> Signal XilDom TVc
 topLevel clk rst en atkStep atkN decStep decN maxG thU thL =
   exposeClockResetEnable (
-    let (sclk, din, cs, ldac) = unbundle $ writeDA3 vc
-        vc = gateOutput 0 (fromEnable en) $
-               agc (uf d18 <$> atkStep) atkN
-                   (uf d18 <$> decStep) decN
-                   (uf d18 <$> maxG)
-                   thU thL
-    in bundle (vc, sclk, din, cs, ldac)
+        gateOutput 0 (fromEnable en) $
+          agc (uf d18 <$> atkStep) atkN
+              (uf d18 <$> decStep) decN
+              (uf d18 <$> maxG)
+              thU thL
   ) clk rst (toEnable $ pure True)
-  where
 
 {-# ANN topLevel
   (Synthesize
@@ -127,11 +114,5 @@ topLevel clk rst en atkStep atkN decStep decN maxG thU thL =
                  , PortName "thres_high"
                  , PortName "thres_low"
                  ]
-    , t_output = PortProduct ""
-                   [ PortName "gain"
-                   , PortName "da3_sclk"
-                   , PortName "da3_data"
-                   , PortName "da3_ncs"
-                   , PortName "da3_nldac"
-                   ]
+    , t_output = PortName "gain"
     }) #-}
