@@ -1,0 +1,24 @@
+.dbc-slider {
+    padding:0px 0px 0px 0px !important;
+    align-items: center;
+    display: flex;
+}
+
+.loader-wrapper > div {
+    background-color: rgba(14,114,196, 0.7) !important;
+    visibility: visible !important;
+    
+}
+
+.loading-anim {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-image: radial-gradient(closest-side at 50% 50%, rgba(255,255,255, 0.9), rgba(255,255,255, 0.0));
+    width: 100% ;
+    height: 100%;
+}
+
+.custom-switch {
+    float: right;
+}
