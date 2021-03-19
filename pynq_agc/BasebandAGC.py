@@ -2,7 +2,8 @@ import numpy as np
 import random as rnd
 import os
 import time
-from pynq import Overlay,allocate
+from pynq import allocate,DefaultHierarchy
+from .baseband_agc.AgcDashController import AgcDashController
 
 # Model's pure functions
 
@@ -58,9 +59,22 @@ def calc_ref(t, mode, fc, data_rate, random_data):
         return (modulated.real, modulated.imag)
 
 
-class AgcDashModel():
+class BasebandAGC(DefaultHierarchy):
 
-    def __init__(self, fs = 1000000, N = 6000):
+    @staticmethod
+    def checkhierarchy(description):
+        if 'agc_v1_0_0' in description['ip'] \
+           and 'dma_in_i' in description['ip'] \
+           and 'dma_in_q' in description['ip'] \
+           and 'dma_agc_i' in description['ip'] \
+           and 'dma_agc_q' in description['ip'] \
+           and 'dma_agc_g' in description['ip']:
+            return True
+        return False
+
+    def __init__(self, description, fs = 1000000, N = 6000):
+
+        super().__init__(description)
 
         # Input paramters
         self._fs = fs
@@ -69,19 +83,6 @@ class AgcDashModel():
         # Cache timeseries and reusable random data
         self._random_data = [rnd.randint(0,3) for _ in range(N)]
         self._t           = np.array([i/fs for i in range(N)])
-
-        # Overlay config
-        bit_name  = os.path.dirname(__file__) + '/agc_loopback.bit'
-        ol = Overlay(bit_name)
-        self._ol = ol
-
-        #Avoid PYNQ's get_attr overhead by aliasing IPs
-        self._agc = ol.agc
-        self._dma_in_i  = ol.dma_in_i
-        self._dma_in_q  = ol.dma_in_q
-        self._dma_agc_i = ol.dma_agc_i
-        self._dma_agc_q = ol.dma_agc_q
-        self._dma_agc_g = ol.dma_agc_g
 
         # Allocate buffers
         self._buf_in_i  = allocate(shape=(N,), dtype=np.int16)
@@ -116,19 +117,15 @@ class AgcDashModel():
         freq_x = np.fft.fftshift(np.fft.fftfreq(len(freq_y), 1/self.fs))
         return (freq_x, freq_y)
 
-
     def agc_cfg(self, en, win, ref, alpha):
         ADDR_EN    = 0
         ADDR_WIN   = 4
         ADDR_REF   = 8
         ADDR_ALPHA = 12
-        #self._agc.write(ADDR_EN, en + 0)
-        #time.sleep(0.01)
-        self._agc.write(ADDR_EN, en + 2)
-        #time.sleep(0.01)
-        self._agc.write(ADDR_WIN, int(win))
-        self._agc.write(ADDR_REF, int(np.log10(ref*2**15)*2**12))
-        self._agc.write(ADDR_ALPHA, int(alpha*2**6))
+        self.agc_v1_0_0.write(ADDR_EN, en + 2)
+        self.agc_v1_0_0.write(ADDR_WIN, int(win))
+        self.agc_v1_0_0.write(ADDR_REF, int(np.log10(ref*2**15)*2**12))
+        self.agc_v1_0_0.write(ADDR_ALPHA, int(alpha*2**6))
 
     def agc_loopback(self, in_i, in_q):
 
@@ -136,20 +133,24 @@ class AgcDashModel():
             self._buf_in_i[i] = np.rint(in_i[i]*(2**15-1))
             self._buf_in_q[i] = np.rint(in_q[i]*(2**15-1))
 
-        self._dma_agc_i.recvchannel.transfer(self._buf_agc_i)
-        self._dma_agc_q.recvchannel.transfer(self._buf_agc_q)
-        self._dma_agc_g.recvchannel.transfer(self._buf_agc_g)
-        self._dma_in_i.sendchannel.transfer(self._buf_in_i)
-        self._dma_in_q.sendchannel.transfer(self._buf_in_q)
+        self.dma_agc_i.recvchannel.transfer(self._buf_agc_i)
+        self.dma_agc_q.recvchannel.transfer(self._buf_agc_q)
+        self.dma_agc_g.recvchannel.transfer(self._buf_agc_g)
+        self.dma_in_i.sendchannel.transfer(self._buf_in_i)
+        self.dma_in_q.sendchannel.transfer(self._buf_in_q)
 
-        self._dma_in_i.sendchannel.wait()
-        self._dma_in_q.sendchannel.wait()
-        self._dma_agc_q.recvchannel.wait()
-        self._dma_agc_i.recvchannel.wait()
-        self._dma_agc_g.recvchannel.wait()
+        self.dma_in_i.sendchannel.wait()
+        self.dma_in_q.sendchannel.wait()
+        self.dma_agc_q.recvchannel.wait()
+        self.dma_agc_i.recvchannel.wait()
+        self.dma_agc_g.recvchannel.wait()
 
         outs = (np.array(self._buf_agc_i)/(2**15-1),
                 np.array(self._buf_agc_q)/(2**15-1),
                 np.array(self._buf_agc_g)/(2**15-1))
 
         return outs
+
+    def gui(self, *args, **kwargs):
+        ctrl = AgcDashController(self)
+        return ctrl.show(*args, **kwargs)

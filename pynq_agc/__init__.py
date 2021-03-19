@@ -1,2 +1,2 @@
-from .AgcDashModel import AgcDashModel
-from .AgcDashController import AgcDashController
+from .BasebandAGC import BasebandAGC
+#from .AgcDashController import AgcDashController
