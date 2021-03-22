@@ -1,6 +1,7 @@
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
+import numpy as np
 
 _in_control_panel = lambda state : dbc.Container([
     dbc.Row(
@@ -20,13 +21,13 @@ _in_control_panel = lambda state : dbc.Container([
                 ], className='mt-1'),
                      dbc.InputGroup([
                         dbc.InputGroupAddon("Data", addon_type="prepend"),
-                        dcc.Slider(id='in-f-data', min=500,max=10000, value=state['fm'], className="form-control dbc-slider"),
-                        dbc.InputGroupAddon(str(state['fm'])+" Hz",id='in-f-data-label', addon_type="append"),
+                        dcc.Slider(id='in-f-data', min=400,max=4000, value=state['fm']/1000, className="form-control dbc-slider"),
+                        dbc.InputGroupAddon(str(state['fm']/1000)+" kHz",id='in-f-data-label', addon_type="append"),
                 ], className='mt-1'),
                     dbc.InputGroup([
                         dbc.InputGroupAddon("Carrier", addon_type="prepend"),
-                        dcc.Slider(id='in-f-carrier',min=10,max=100,step=1, value=(state['fc']/1000), className="form-control dbc-slider"),
-                        dbc.InputGroupAddon(str(state['fc']/1000)+" kHz", id='in-f-carrier-label', addon_type="append")
+                        dcc.Slider(id='in-f-carrier',min=4,max=400,step=10, value=(state['fc']/1000000), className="form-control dbc-slider"),
+                        dbc.InputGroupAddon(str(state['fc']/1000000)+" MHz", id='in-f-carrier-label', addon_type="append")
                 ], className='mt-1'),
                 ]),
              ])
@@ -51,25 +52,26 @@ _in_control_panel = lambda state : dbc.Container([
 _agc_control_panel = lambda state: dbc.Container([
     dbc.Row(
         dbc.Col([
-            dbc.ListGroup([
-                dbc.ListGroupItem("AGC Parameters", color='secondary'),
+
+
+            dbc.Tabs([
+
+            # Thresholds tab
+                dbc.Tab(
+                dbc.ListGroup([
                 dbc.ListGroupItem([
+
                     dbc.InputGroup([
-                        dbc.InputGroupAddon("Ref", addon_type="prepend"),
-                        dcc.Slider(id='agc-ref',min=0,max=1,step=0.01, value=(state['agc_ref']), className="form-control dbc-slider"),
-                        dbc.InputGroupAddon(str(state['agc_ref']*100)+"%", id='agc-ref-label', addon_type="append")
+                        dbc.InputGroupAddon("Range", addon_type="prepend"),
+                        dcc.RangeSlider(id='thres-range',min=0,max=1,step=0.01, value=(state['thres_low'], state['thres_high']), className="form-control dbc-slider"),
+                        dbc.InputGroupAddon(str(state['thres_low']*100)+"-"+ str(state['thres_high']*100) + " %", id='thres-range-label', addon_type="append")
                 ], className='mt-1'),
-                     dbc.InputGroup([
-                        dbc.InputGroupAddon("Alpha", addon_type="prepend"),
-                        dcc.Slider(id='agc-alpha', min=0,max=1.99,step=0.1, value=state['agc_alpha'], className="form-control dbc-slider"),
-                        dbc.InputGroupAddon(str(state['agc_alpha']),id='agc-alpha-label', addon_type="append"),
+                    dbc.InputGroup([
+                        dbc.InputGroupAddon("Hysteresis", addon_type="prepend"),
+                        dcc.Slider(id='thres-hyst',min=0.01,max=10,step=0.01, value=(state['thres_hyst']*1e6), className="form-control dbc-slider"),
+                        dbc.InputGroupAddon(str(state['thres_hyst']*1e6)+" µs", id='thres-hyst-label', addon_type="append")
                 ], className='mt-1'),
-                dbc.InputGroup([
-                        dbc.InputGroupAddon("Window", addon_type="prepend"),
-                        dcc.Slider(id='agc-window', min=0,max=10,step=1, value=state['agc_window'], className="form-control dbc-slider"),
-                        dbc.InputGroupAddon(str(2**state['agc_window'])+" Samples",id='agc-window-label', addon_type="append"),
-                ], className='mt-1'),
-                
+
                 dbc.InputGroup([
                         dbc.InputGroupAddon("Bypass AGC", addon_type="prepend"),
                         dbc.Checklist(
@@ -83,9 +85,43 @@ _agc_control_panel = lambda state: dbc.Container([
                         ),
                 ], className='mt-1'),
 
+                ])
+                ])
+                , label = "Thresholds"),
+
+            # AGC tab
+            dbc.Tab(
+            dbc.ListGroup([
+                dbc.ListGroupItem([
+                    dbc.InputGroup([
+                        dbc.InputGroupAddon("Atk period", addon_type="prepend"),
+                        dcc.Slider(id='agc-atk-t',min=0.01,max=10,step=0.01, value=(state['agc_atk_t']*1e6), className="form-control dbc-slider"),
+                        dbc.InputGroupAddon(str(state['agc_atk_t']*1e6)+" µs", id='agc-atk-t-label', addon_type="append")
+                ], className='mt-1'),
+                    dbc.InputGroup([
+                        dbc.InputGroupAddon("Atk step", addon_type="prepend"),
+                        dcc.Slider(id='agc-atk-step',min=-18,max=-1,step=1, value=(int(np.log2(state['agc_atk_step']))), className="form-control dbc-slider"),
+                        dbc.InputGroupAddon('2^' + str(int(np.log2(state['agc_atk_step']))), id='agc-atk-step-label', addon_type="append")
+                ], className='mt-1'),
+                    dbc.InputGroup([
+                        dbc.InputGroupAddon("Dec period", addon_type="prepend"),
+                        dcc.Slider(id='agc-dec-t',min=0.01,max=10,step=0.01, value=(state['agc_dec_t']*1e6), className="form-control dbc-slider"),
+                        dbc.InputGroupAddon(str(state['agc_dec_t']*1e6)+" µs", id='agc-dec-t-label', addon_type="append")
+                ], className='mt-1'),
+                    dbc.InputGroup([
+                        dbc.InputGroupAddon("Dec step", addon_type="prepend"),
+                        dcc.Slider(id='agc-dec-step',min=-18,max=-1,step=1, value=(int(np.log2(state['agc_dec_step']))), className="form-control dbc-slider"),
+                        dbc.InputGroupAddon('2^' + str(int(np.log2(state['agc_dec_step']))), id='agc-dec-step-label', addon_type="append")
+                ], className='mt-1'),
+
                 ]),
-             ])
-        ])),
+            ])
+
+                , label = "AGC Parameters"),
+
+            ])
+        ])
+        ,className='mt-3'),
     
     dbc.Row(
         dbc.Col([
@@ -96,14 +132,12 @@ _agc_control_panel = lambda state: dbc.Container([
                         dbc.InputGroupAddon("Domain", addon_type="prepend"),
                         dbc.Select(id='agc-graph-mode',options=[
                             {"label": "Time", "value": 'time'},
-                            {"label": "Constellation", "value": 'const'},
                             {"label": "Frequency", "value": 'freq'}
                         ], value=state['agc_graph_mode']),
                 ], className='mt-1'),
                 ])
             ])
         ])
-    
     ,className='mt-3')
 ])
 
@@ -135,13 +169,8 @@ _in_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.Lo
     figure={
         'data': [{
             'x': state['t'],
-            'y': state['i'],
-            'name': 'I',
-            'mode': 'lines'
-        }, {
-            'x': state['t'],
-            'y': state['q'],
-            'name': 'Q',
+            'y': state['tx'],
+            'name': 'TX',
             'mode': 'lines'
         }],
         'layout': {
@@ -198,20 +227,9 @@ _agc_graph = lambda state: html.Div(className="loader-wrapper", children=[ dcc.L
     figure={
         'data': [{
             'x': state['t'],
-            'y': state['agc_i'],
-            'name': 'I',
+            'y': state['rx'],
+            'name': 'RX',
             'mode': 'lines'
-        }, {
-            'x': state['t'],
-            'y': state['agc_q'],
-            'name': 'Q',
-            'mode': 'lines'
-        }, {
-            'x': state['t'],
-            'y': state['agc_g'],
-            'name': 'Gain',
-            'mode': 'lines',
-            'visible': 'legendonly',
         }],
         'layout': {
             'title': 'Output Signal',

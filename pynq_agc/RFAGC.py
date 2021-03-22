@@ -23,7 +23,7 @@ class RFAGC(DefaultHierarchy):
             return True
         return False
 
-    def __init__(self, description, fs = 1.024e9, N = 4*32768):
+    def __init__(self, description, fs_ctrl = 100e6, fs = 1.024e9, N = 4*32768):
 
         super().__init__(description)
 
@@ -31,6 +31,7 @@ class RFAGC(DefaultHierarchy):
         # TODO Set ref clks for RFSoC with 2x2 reset
 
         # Input paramters
+        self._fs_ctrl = fs_ctrl
         self._fs = fs
         self._N  = N
 
@@ -59,6 +60,10 @@ class RFAGC(DefaultHierarchy):
         return self._fs
 
     @property
+    def fs_ctrl(self):
+        return self._fs_ctrl
+
+    @property
     def t(self):
         return self._t
 
@@ -76,7 +81,7 @@ class RFAGC(DefaultHierarchy):
         freq_x = np.fft.fftshift(np.fft.fftfreq(len(freq_y), 1/self.fs))
         return (freq_x, freq_y)
 
-    def agc_cfg(self, en, atk_step, atk_n, dec_step, dec_n, max_gain):
+    def agc_cfg(self, en, atk_step, atk_t, dec_step, dec_t, max_gain):
         ADDR_ATKSTEP = 0
         ADDR_ATKN    = 1 * 4
         ADDR_DECSTEP = 2 * 4
@@ -87,12 +92,13 @@ class RFAGC(DefaultHierarchy):
         self.analogueAgc_v1_0_0.write(ADDR_MAXG, int(max_gain*2**18))
         self.analogueAgc_v1_0_0.write(ADDR_ATKSTEP, int(atk_step*2**18))
         self.analogueAgc_v1_0_0.write(ADDR_DECSTEP, int(dec_step*2**18))
-        self.analogueAgc_v1_0_0.write(ADDR_ATKN, int(atk_n))
-        self.analogueAgc_v1_0_0.write(ADDR_DECN, int(dec_n))
+        self.analogueAgc_v1_0_0.write(ADDR_ATKN, int(atk_t * self.fs_ctrl))
+        self.analogueAgc_v1_0_0.write(ADDR_DECN, int(dec_t * self.fs_ctrl))
 
-    def threshold_cfg(self, low, high, hyst_cycles):
+    def threshold_cfg(self, low, high, hyst_t):
 
-        hyst_cycles = round(hyst_cycles / 8)
+        hyst_cycles = round(hyst_t * self.fs / 8)
+
         self.thres_low.Settings = {
             'ThresholdMode': xrfdc.TRSHD_HYSTERISIS,
             'ThresholdAvgVal': int(hyst_cycles),
