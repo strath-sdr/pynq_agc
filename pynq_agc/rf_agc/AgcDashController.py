@@ -59,7 +59,7 @@ def rm_envelope_handle(shapes, index=None):
 
 class AgcDashController():
 
-    def __init__(self, model, N_handles=4):
+    def __init__(self, model, N_handles=2):
         self.model = model
 
         # Generate an initial state
@@ -104,54 +104,87 @@ class AgcDashController():
         init_state['presets'] = {
             'Default' : {
                 'signal_mode'   : 'sin',
-                'fm'            : 2000,
-                'fc'            : 20000,
-                'agc_ref'       : 0.7,
-                'agc_alpha'     : 0.7,
-                'agc_window'    : 64,
+                'fm'            : 1e6,
+                'fc'            : 50e6,
+                'agc_atk_t'       : 4/100e6,
+                'agc_atk_step'     : 2**(-13),
+                'agc_dec_t'       : 4/100e6,
+                'agc_dec_step'     : 2**(-13),
+                'thres_low'    : 0.5,
+                'thres_high'    : 0.7,
+                'thres_hyst'    : 64/1.024e9,
                 'agc_bypass'    : False,
                 'agc_graph_mode': 'time',
                 'handle_pos'    : [(x*self.model.N/self.model.fs, y)
-                                   for (x,y) in [(0.2, 1.0), (0.4, 1.0), (0.6, 1.0), (0.8, 1.0)]
+                                   for (x,y) in [(0.33, 0.3), (0.66, 0.3)]
                                   ],
             },
-            'Slow fading' : {
+            'Static compensation' : {
                 'signal_mode'   : 'sin',
-                'fm'            : 2000,
-                'fc'            : 40000,
-                'agc_ref'       : 0.7,
-                'agc_alpha'     : 1.0,
-                'agc_window'    : 64,
+                'fm'            : 1e6,
+                'fc'            : 50e6,
+                'agc_atk_t'       : 4/100e6,
+                'agc_atk_step'     : 2**(-13),
+                'agc_dec_t'       : 4/100e6,
+                'agc_dec_step'     : 2**(-13),
+                'thres_low'    : 0.7,
+                'thres_high'    : 0.95,
+                'thres_hyst'    : 64/1.024e9,
                 'agc_bypass'    : False,
                 'agc_graph_mode': 'time',
                 'handle_pos'    : [(x*self.model.N/self.model.fs, y)
-                                   for (x,y) in [(0.1, 1.0), (0.4, 0.2), (0.5, 0.2), (0.9,1.0)]
+                                   for (x,y) in [(0.5, 0.3)]
                                   ],
             },
-            'AM envelope preservation' : {
-                'signal_mode'  : 'am',
-                'fm'           : 8000,
-                'fc'           : 80000,
-                'agc_ref'      : 0.4,
-                'agc_alpha'    : 0.9,
-                'agc_window'   : 256,
-                'agc_bypass'   : False,
+            'Step up' : {
+                'signal_mode'   : 'sin',
+                'fm'            : 1e6,
+                'fc'            : 50e6,
+                'agc_atk_t'       : 1e-6,
+                'agc_atk_step'     : 2**(-10),
+                'agc_dec_t'       : 1e-6,
+                'agc_dec_step'     : 2**(-7),
+                'thres_low'    : 0.7,
+                'thres_high'    : 0.95,
+                'thres_hyst'    : 62.5e-9,
+                'agc_bypass'    : False,
                 'agc_graph_mode': 'time',
                 'handle_pos'    : [(x*self.model.N/self.model.fs, y)
-                                   for (x,y) in [(0.1, 1.0), (0.105, 0.1), (0.6, 0.1), (0.62,1.0)]
+                                   for (x,y) in [(0.49, 0.26), (0.51, 0.56)]
                                   ],
             },
-            'Packet preambles with QPSK' : {
-                'signal_mode'  : 'qpsk_bb',
-                'fm'           : 8000,
-                'fc'           : 80000,
-                'agc_ref'      : 0.7,
-                'agc_alpha'    : 0.5,
-                'agc_window'   : 64,
-                'agc_bypass'   : False,
+            'Step down' : {
+                'signal_mode'   : 'sin',
+                'fm'            : 1e6,
+                'fc'            : 50e6,
+                'agc_atk_t'       : 0.15e-6,
+                'agc_atk_step'     : 2**(-10),
+                'agc_dec_t'       : 1e-6,
+                'agc_dec_step'     : 2**(-7),
+                'thres_low'    : 0.7,
+                'thres_high'    : 0.95,
+                'thres_hyst'    : 62.5e-9,
+                'agc_bypass'    : False,
                 'agc_graph_mode': 'time',
                 'handle_pos'    : [(x*self.model.N/self.model.fs, y)
-                                   for (x,y) in [(0.18, 0), (0.181, 1.0), (0.68, 1.0), (0.681,0)]
+                                   for (x,y) in [(0.49, 0.56), (0.51, 0.26)]
+                                  ],
+            },
+            'Pass-through' : {
+                'signal_mode'   : 'sin',
+                'fm'            : 1e6,
+                'fc'            : 50e6,
+                'agc_atk_t'       : 4/100e6,
+                'agc_atk_step'     : 2**(-13),
+                'agc_dec_t'       : 4/100e6,
+                'agc_dec_step'     : 2**(-13),
+                'thres_low'    : 0.5,
+                'thres_high'    : 0.7,
+                'thres_hyst'    : 64/1.024e9,
+                'agc_bypass'    : True,
+                'agc_graph_mode': 'time',
+                'handle_pos'    : [(x*self.model.N/self.model.fs, y)
+                                   for (x,y) in [(0.33, 1.0), (0.66, 1.0)]
                                   ],
             },
         }
@@ -214,36 +247,42 @@ class AgcDashController():
         def update_carrier_label(f):
             return f'{int(f)} MHz'
 
-#        @app.callback(
-#            [
-#             Output('in-sig-type', 'value'),
-#             Output('in-f-carrier', 'value'),
-#             Output('in-f-data', 'value'),
-#             Output('agc-ref', 'value'),
-#             Output('agc-alpha', 'value'),
-#             Output('agc-window', 'value'),
-#             Output('agc-bypass', 'value'),
-#             Output('agc-graph-mode', 'value'),
-#             Output('new-env-preset', 'value'),
-#            ],
-#            [Input('preset-option', 'value')]
-#        )
-#        def set_to_preset(preset_name):
-#
-#            preset = self.init_state['presets'][preset_name]
-#
-#            # Return new GUI values
-#            return (preset['signal_mode'],
-#                    preset['fc'] / 1000,
-#                    preset['fm'],
-#                    preset['agc_ref'],
-#                    preset['agc_alpha'],
-#                    int(np.log2(preset['agc_window'])),
-#                    preset['agc_bypass'],
-#                    preset['agc_graph_mode'],
-#                    str(preset['handle_pos']))
-#
-#
+        @app.callback(
+            [
+             Output('in-sig-type', 'value'),
+             Output('in-f-carrier', 'value'),
+             Output('in-f-data', 'value'),
+             Output('agc-atk-t', 'value'),
+             Output('agc-atk-step', 'value'),
+             Output('agc-dec-t', 'value'),
+             Output('agc-dec-step', 'value'),
+             Output('thres-range', 'value'),
+             Output('thres-hyst', 'value'),
+             Output('agc-bypass', 'value'),
+             Output('agc-graph-mode', 'value'),
+             Output('new-env-preset', 'value'),
+            ],
+            [Input('preset-option', 'value')]
+        )
+        def set_to_preset(preset_name):
+
+            preset = self.init_state['presets'][preset_name]
+
+            # Return new GUI values
+            return (preset['signal_mode'],
+                    preset['fc'] / 1e6,
+                    preset['fm'] / 1e3,
+                    preset['agc_atk_t'] * 1e6,
+                    int(np.log2(preset['agc_atk_step'])),
+                    preset['agc_dec_t'] * 1e6,
+                    int(np.log2(preset['agc_dec_step'])),
+                    [preset['thres_low'], preset['thres_high']],
+                    preset['thres_hyst'] * 1e6,
+                    [1] if preset['agc_bypass'] else [],
+                    preset['agc_graph_mode'],
+                    str(preset['handle_pos']))
+
+
         @app.callback(
             [Output('graph-inputs', 'figure'), Output('new-input-signal', 'children')],
             [Input('graph-inputs', 'relayoutData'),

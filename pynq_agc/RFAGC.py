@@ -119,13 +119,16 @@ class RFAGC(DefaultHierarchy):
 
         self._buf_tx[:] = np.rint(ins*(2**15-1))
 
-        self.axisSync.write(ADDR_PKT_LEN, int(len(self._buf_rx)/8))
-        self.dma_rf_tx.sendchannel.transfer(self._buf_tx)
-        self.dma_rf_rx.recvchannel.transfer(self._buf_rx)
-        self.axisSync.write(ADDR_TRANS, 1)
-        self.dma_rf_rx.recvchannel.wait()
-        self.dma_rf_tx.sendchannel.wait()
-        self.axisSync.write(ADDR_TRANS, 0)
+        # We'll run this buffer through twice, just so we avoid and
+        # non-deterministic output due to previous state.
+        for _ in range(2):
+            self.axisSync.write(ADDR_PKT_LEN, int(len(self._buf_rx)/8))
+            self.dma_rf_tx.sendchannel.transfer(self._buf_tx)
+            self.dma_rf_rx.recvchannel.transfer(self._buf_rx)
+            self.axisSync.write(ADDR_TRANS, 1)
+            self.dma_rf_rx.recvchannel.wait()
+            self.dma_rf_tx.sendchannel.wait()
+            self.axisSync.write(ADDR_TRANS, 0)
 
         outs = np.array(self._buf_rx)/(2**15-1)
 

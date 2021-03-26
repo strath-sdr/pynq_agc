@@ -78,7 +78,7 @@ _agc_control_panel = lambda state: dbc.Container([
                             options=[
                                 {"label": "", "value": 1},
                             ],
-                            value=[],
+                            value=[0],
                             id="agc-bypass",
                             switch=True,
                             className = "form-control"
@@ -95,7 +95,7 @@ _agc_control_panel = lambda state: dbc.Container([
                 dbc.ListGroupItem([
                     dbc.InputGroup([
                         dbc.InputGroupAddon("Atk period", addon_type="prepend"),
-                        dcc.Slider(id='agc-atk-t',min=0.01,max=10,step=0.01, value=(state['agc_atk_t']*1e6), className="form-control dbc-slider"),
+                        dcc.Slider(id='agc-atk-t',min=0.01,max=2,step=0.01, value=(state['agc_atk_t']*1e6), className="form-control dbc-slider"),
                         dbc.InputGroupAddon(str(state['agc_atk_t']*1e6)+" µs", id='agc-atk-t-label', addon_type="append")
                 ], className='mt-1'),
                     dbc.InputGroup([
@@ -105,7 +105,7 @@ _agc_control_panel = lambda state: dbc.Container([
                 ], className='mt-1'),
                     dbc.InputGroup([
                         dbc.InputGroupAddon("Dec period", addon_type="prepend"),
-                        dcc.Slider(id='agc-dec-t',min=0.01,max=10,step=0.01, value=(state['agc_dec_t']*1e6), className="form-control dbc-slider"),
+                        dcc.Slider(id='agc-dec-t',min=0.01,max=2,step=0.01, value=(state['agc_dec_t']*1e6), className="form-control dbc-slider"),
                         dbc.InputGroupAddon(str(state['agc_dec_t']*1e6)+" µs", id='agc-dec-t-label', addon_type="append")
                 ], className='mt-1'),
                     dbc.InputGroup([
