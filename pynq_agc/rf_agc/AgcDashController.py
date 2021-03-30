@@ -67,15 +67,15 @@ class AgcDashController():
             signal_mode = 'sin',    # sin, am, fm, qpsk_bb, or qpsk_if
             fc = 50e6,
             fm =  1e6,
-            agc_atk_t = 4 / 100e6,
-            agc_dec_t = 4 / 100e6,
-            agc_atk_step = 2**(-13),
-            agc_dec_step = 2**(-13),
+            agc_atk_t = 50 / 100e6,
+            agc_dec_t = 50 / 100e6,
+            agc_atk_step = 2**(-9),
+            agc_dec_step = 2**(-8),
             agc_bypass  = False,
             agc_max_gain = 0.99,
             thres_low = 0.5,
             thres_high = 0.7,
-            thres_hyst = 64 / 1.024e9,
+            thres_hyst = 1376 / 1.024e9,
             agc_graph_mode = 'time', # time, const, freq
             t = self.model.t,
             N_handles = N_handles,
@@ -106,13 +106,13 @@ class AgcDashController():
                 'signal_mode'   : 'sin',
                 'fm'            : 1e6,
                 'fc'            : 50e6,
-                'agc_atk_t'       : 4/100e6,
-                'agc_atk_step'     : 2**(-13),
-                'agc_dec_t'       : 4/100e6,
-                'agc_dec_step'     : 2**(-13),
+                'agc_atk_t'       : 50/100e6,
+                'agc_atk_step'     : 2**(-9),
+                'agc_dec_t'       : 50/100e6,
+                'agc_dec_step'     : 2**(-8),
                 'thres_low'    : 0.5,
                 'thres_high'    : 0.7,
-                'thres_hyst'    : 64/1.024e9,
+                'thres_hyst'    : 1.35e-6,
                 'agc_bypass'    : False,
                 'agc_graph_mode': 'time',
                 'handle_pos'    : [(x*self.model.N/self.model.fs, y)
@@ -157,13 +157,13 @@ class AgcDashController():
                 'signal_mode'   : 'sin',
                 'fm'            : 1e6,
                 'fc'            : 50e6,
-                'agc_atk_t'       : 0.15e-6,
+                'agc_atk_t'       : 0.32e-6,
                 'agc_atk_step'     : 2**(-10),
                 'agc_dec_t'       : 1e-6,
                 'agc_dec_step'     : 2**(-7),
                 'thres_low'    : 0.7,
                 'thres_high'    : 0.95,
-                'thres_hyst'    : 62.5e-9,
+                'thres_hyst'    : 1.41e-9,
                 'agc_bypass'    : False,
                 'agc_graph_mode': 'time',
                 'handle_pos'    : [(x*self.model.N/self.model.fs, y)
@@ -399,4 +399,4 @@ class AgcDashController():
 
     def show(self,debug=False):
         mode = 'external' if debug else 'inline'
-        return self.app.run_server(mode=mode, host=ifaddresses('eth0')[AF_INET][0]['addr'], height=950)
+        return self.app.run_server(mode=mode, host=ifaddresses('eth0')[AF_INET][0]['addr'], port=8051, height=950)
