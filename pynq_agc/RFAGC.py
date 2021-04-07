@@ -23,7 +23,7 @@ class RFAGC(DefaultHierarchy):
             return True
         return False
 
-    def __init__(self, description, fs_ctrl = 100e6, fs = 1.024e9, N = 4*32768):
+    def __init__(self, description, fs_ctrl = 75e6, fs = 1.024e9, N = 4*32768):
 
         super().__init__(description)
 

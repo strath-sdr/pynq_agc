@@ -101,7 +101,7 @@ lnNorm args u = fmap (\(_,_,z)->shiftL z 1) $
                                           x params
                       )
                 (bundle (s+1, s-1, 0))
-                (unconcat d2 args)
+                (unconcat d1 args)
   where
   s = (resizeF . toSF) <$> u
 
@@ -116,7 +116,7 @@ lnScaled args eLn2s u =
                  (reverse . bv2v $ pack u)
       ms1 = iOfMS1 <$> u
       eLn2 = (\i -> eLn2s !! fromIntegral i) <$> (26-(25-ms1))
-  in liftA2 add eLn2 (lnNorm args (register 0 $ liftA2 scaleDown u (25-ms1)))
+  in liftA2 add eLn2 (lnNorm args (liftA2 scaleDown u (25-ms1)))
 
 log10 :: forall dom n . (HiddenClockResetEnable dom)
          => Vec 32 (Int, SFixed 5 32)
@@ -126,7 +126,7 @@ log10 :: forall dom n . (HiddenClockResetEnable dom)
 log10 paramsVec eLn2sVec x =
   let lnX = resizeF <$> lnScaled paramsVec eLn2sVec x :: Signal dom (SFixed 6 19)
       scaling = $$(fLit $ 1 / (log 10)) :: SFixed 7 11
-      log10X = mul scaling <$> register 0 lnX
+      log10X = mul scaling <$> lnX
   in resizeF <$> log10X
 
 
@@ -141,7 +141,7 @@ expNorm args init u = fmap (\(x,_,_)->toUF x) $
                                           x params
                       )
                       (bundle (pure init, pure init, s))
-                      (unconcat d2 args)
+                      (unconcat d1 args)
   where
   s = resizeF <$> u
 
@@ -156,7 +156,7 @@ expScaled args init eLn2s u =
       s = resizeF <$> u
       iQ = getQIndex <$> s
       qLn2 = (eLn2s !!) <$> iQ
-      s' = delay 0 $ mux (s .>. 0) (s - qLn2) (s + qLn2)
+      s' = mux (s .>. 0) (s - qLn2) (s + qLn2)
       shift s expD iQ = if s > 0
                         then resizeF $ shiftL expD iQ
                         else resizeF $ shiftR expD iQ
@@ -172,7 +172,7 @@ pow10 :: forall n dom . (HiddenClockResetEnable dom)
          -> Signal dom (UFixed 24 32) --TODO tighten bits
 pow10 args init eLn2s u =
   let scaling = $$(fLit $ log 10) :: SFixed 3 15
-      x' = delay 0 $ resizeF <$> mul scaling <$> u
+      x' = resizeF <$> mul scaling <$> u
       expX = resizeF <$> expScaled args init eLn2s x'
   in expX
 {-

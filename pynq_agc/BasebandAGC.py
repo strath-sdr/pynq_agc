@@ -72,7 +72,7 @@ class BasebandAGC(DefaultHierarchy):
             return True
         return False
 
-    def __init__(self, description, fs = 1000000, N = 6000):
+    def __init__(self, description, fs = 75e6, N = 6000):
 
         super().__init__(description)
 

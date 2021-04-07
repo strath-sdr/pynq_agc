@@ -496,7 +496,7 @@ proc create_hier_cell_rf_agc { parentCell nameHier } {
   connect_bd_net -net ACLK_2 [get_bd_pins clk_slow] [get_bd_pins analogueAgc_v1_0_0/s00_axi_aclk] [get_bd_pins axi_interconnect_slow/ACLK] [get_bd_pins axi_interconnect_slow/M00_ACLK] [get_bd_pins axi_interconnect_slow/M01_ACLK] [get_bd_pins axi_interconnect_slow/S00_ACLK] [get_bd_pins proc_sys_reset_axi_slow/slowest_sync_clk] [get_bd_pins rf/s_axi_aclk] [get_bd_pins threshold_sync/agc_clk]
   connect_bd_net -net ARESETN_1 [get_bd_pins ARESETN] [get_bd_pins clk_wiz_adc_128/resetn] [get_bd_pins proc_sys_reset_adc/ext_reset_in] [get_bd_pins proc_sys_reset_axi_fast/ext_reset_in] [get_bd_pins proc_sys_reset_axi_slow/ext_reset_in] [get_bd_pins proc_sys_reset_dac/ext_reset_in]
   connect_bd_net -net ARESETN_2 [get_bd_pins axi_interconnect_fast/ARESETN] [get_bd_pins axi_interconnect_fast/M00_ARESETN] [get_bd_pins axi_interconnect_fast/M01_ARESETN] [get_bd_pins axi_interconnect_fast/M02_ARESETN] [get_bd_pins axi_interconnect_fast/S00_ARESETN] [get_bd_pins axisSync/s00_axi_aresetn] [get_bd_pins axis_clock_converter_rx/m_axis_aresetn] [get_bd_pins axis_clock_converter_tx/s_axis_aresetn] [get_bd_pins dma_rf_rx/axi_resetn] [get_bd_pins dma_rf_tx/axi_resetn] [get_bd_pins fifo_rf_rx/s_axis_aresetn] [get_bd_pins fifo_rf_tx/s_axis_aresetn] [get_bd_pins proc_sys_reset_axi_fast/interconnect_aresetn]
-  connect_bd_net -net analogueAgc_v1_0_0_gain [get_bd_pins gain] [get_bd_pins analogueAgc_v1_0_0/gain]
+  connect_bd_net -net analogueAgc_v1_0_1_gain [get_bd_pins gain] [get_bd_pins analogueAgc_v1_0_0/gain]
   connect_bd_net -net proc_sys_reset_adc_peripheral_aresetn [get_bd_pins axis_clock_converter_rx/s_axis_aresetn] [get_bd_pins proc_sys_reset_adc/peripheral_aresetn] [get_bd_pins rf/m0_axis_aresetn] [get_bd_pins threshold_sync/fast_aresetn]
   connect_bd_net -net proc_sys_reset_axi_slow_interconnect_aresetn [get_bd_pins axi_interconnect_slow/ARESETN] [get_bd_pins axi_interconnect_slow/M00_ARESETN] [get_bd_pins axi_interconnect_slow/M01_ARESETN] [get_bd_pins axi_interconnect_slow/S00_ARESETN] [get_bd_pins proc_sys_reset_axi_slow/interconnect_aresetn]
   connect_bd_net -net proc_sys_reset_axi_slow_peripheral_aresetn [get_bd_pins analogueAgc_v1_0_0/s00_axi_aresetn] [get_bd_pins proc_sys_reset_axi_slow/peripheral_aresetn] [get_bd_pins rf/s_axi_aresetn] [get_bd_pins threshold_sync/agc_aresetn]
@@ -634,9 +634,9 @@ proc create_hier_cell_baseband_agc { parentCell nameHier } {
   # Create interface connections
   connect_bd_intf_net -intf_net Conn1 [get_bd_intf_pins S_AXI] [get_bd_intf_pins axi_interconnect_0/S00_AXI]
   connect_bd_intf_net -intf_net Conn2 [get_bd_intf_pins M_AXI] [get_bd_intf_pins axi_smc/M00_AXI]
-  connect_bd_intf_net -intf_net agc_v1_0_0_m_g_axis [get_bd_intf_pins agc_v1_0_0/m_g_axis] [get_bd_intf_pins dma_agc_g/S_AXIS_S2MM]
-  connect_bd_intf_net -intf_net agc_v1_0_0_m_i_axis [get_bd_intf_pins agc_v1_0_0/m_i_axis] [get_bd_intf_pins dma_agc_i/S_AXIS_S2MM]
-  connect_bd_intf_net -intf_net agc_v1_0_0_m_q_axis [get_bd_intf_pins agc_v1_0_0/m_q_axis] [get_bd_intf_pins dma_agc_q/S_AXIS_S2MM]
+  connect_bd_intf_net -intf_net agc_v1_0_1_m_g_axis [get_bd_intf_pins agc_v1_0_0/m_g_axis] [get_bd_intf_pins dma_agc_g/S_AXIS_S2MM]
+  connect_bd_intf_net -intf_net agc_v1_0_1_m_i_axis [get_bd_intf_pins agc_v1_0_0/m_i_axis] [get_bd_intf_pins dma_agc_i/S_AXIS_S2MM]
+  connect_bd_intf_net -intf_net agc_v1_0_1_m_q_axis [get_bd_intf_pins agc_v1_0_0/m_q_axis] [get_bd_intf_pins dma_agc_q/S_AXIS_S2MM]
   connect_bd_intf_net -intf_net axi_interconnect_0_M00_AXI [get_bd_intf_pins axi_interconnect_0/M00_AXI] [get_bd_intf_pins dma_in_i/S_AXI_LITE]
   connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins axi_interconnect_0/M01_AXI] [get_bd_intf_pins dma_in_q/S_AXI_LITE]
   connect_bd_intf_net -intf_net axi_interconnect_0_M02_AXI [get_bd_intf_pins agc_v1_0_0/s00_axi] [get_bd_intf_pins axi_interconnect_0/M02_AXI]
@@ -1109,10 +1109,10 @@ proc create_root_design { parentCell } {
    CONFIG.PSU__CRL_APB__PCAP_CTRL__DIVISOR0 {8} \
    CONFIG.PSU__CRL_APB__PCAP_CTRL__FREQMHZ {200} \
    CONFIG.PSU__CRL_APB__PCAP_CTRL__SRCSEL {IOPLL} \
-   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ {99.999001} \
-   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0 {15} \
+   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__ACT_FREQMHZ {74.999252} \
+   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR0 {20} \
    CONFIG.PSU__CRL_APB__PL0_REF_CTRL__DIVISOR1 {1} \
-   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__FREQMHZ {100} \
+   CONFIG.PSU__CRL_APB__PL0_REF_CTRL__FREQMHZ {75} \
    CONFIG.PSU__CRL_APB__PL0_REF_CTRL__SRCSEL {IOPLL} \
    CONFIG.PSU__CRL_APB__PL1_REF_CTRL__ACT_FREQMHZ {99.999001} \
    CONFIG.PSU__CRL_APB__PL1_REF_CTRL__DIVISOR0 {15} \
@@ -1479,6 +1479,7 @@ proc create_root_design { parentCell } {
   # Restore current instance
   current_bd_instance $oldCurInst
 
+  validate_bd_design
   save_bd_design
 }
 # End of create_root_design()
@@ -1490,6 +1491,4 @@ proc create_root_design { parentCell } {
 
 create_root_design ""
 
-
-common::send_gid_msg -ssname BD::TCL -id 2053 -severity "WARNING" "This Tcl script was generated from a block design that has not been validated. It is possible that design <$design_name> may result in errors during validation."
 
