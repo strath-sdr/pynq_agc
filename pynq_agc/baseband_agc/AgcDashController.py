@@ -65,8 +65,8 @@ class AgcDashController():
         # Generate an initial state
         init_state = dict(
             signal_mode = 'sin',    # sin, am, fm, qpsk_bb, or qpsk_if
-            fc = 20000,
-            fm =  2000,
+            fc = 20000*75,
+            fm =  2000*75,
             agc_ref = 0.7,
             agc_alpha = 0.6,
             agc_window = 6,
@@ -90,8 +90,8 @@ class AgcDashController():
         init_state['presets'] = {
             'Default' : {
                 'signal_mode'   : 'sin',
-                'fm'            : 2000,
-                'fc'            : 20000,
+                'fm'            : 2000*75,
+                'fc'            : 20000*75,
                 'agc_ref'       : 0.7,
                 'agc_alpha'     : 0.7,
                 'agc_window'    : 64,
@@ -103,10 +103,10 @@ class AgcDashController():
             },
             'Slow fading' : {
                 'signal_mode'   : 'sin',
-                'fm'            : 2000,
-                'fc'            : 40000,
+                'fm'            : 2000*75,
+                'fc'            : 40000*75,
                 'agc_ref'       : 0.7,
-                'agc_alpha'     : 1.0,
+                'agc_alpha'     : 0.7,
                 'agc_window'    : 64,
                 'agc_bypass'    : False,
                 'agc_graph_mode': 'time',
@@ -116,10 +116,10 @@ class AgcDashController():
             },
             'AM envelope preservation' : {
                 'signal_mode'  : 'am',
-                'fm'           : 8000,
-                'fc'           : 80000,
+                'fm'           : 8000*75,
+                'fc'           : 80000*75,
                 'agc_ref'      : 0.4,
-                'agc_alpha'    : 0.9,
+                'agc_alpha'    : 0.7,
                 'agc_window'   : 256,
                 'agc_bypass'   : False,
                 'agc_graph_mode': 'time',
@@ -129,8 +129,8 @@ class AgcDashController():
             },
             'Packet preambles with QPSK' : {
                 'signal_mode'  : 'qpsk_bb',
-                'fm'           : 8000,
-                'fc'           : 80000,
+                'fm'           : 8000*75,
+                'fc'           : 80000*75,
                 'agc_ref'      : 0.7,
                 'agc_alpha'    : 0.5,
                 'agc_window'   : 64,
@@ -174,7 +174,7 @@ class AgcDashController():
             Output('in-f-data-label', 'children'),
             [Input('in-f-data', 'value')])
         def update_data_rate_label(f):
-            return f'{int(f)} Hz'
+            return f'{int(f)} kHz'
 
         @app.callback(
             Output('in-f-carrier-label', 'children'),
@@ -203,7 +203,7 @@ class AgcDashController():
             # Return new GUI values
             return (preset['signal_mode'],
                     preset['fc'] / 1000,
-                    preset['fm'],
+                    preset['fm'] / 1000,
                     preset['agc_ref'],
                     preset['agc_alpha'],
                     int(np.log2(preset['agc_window'])),
@@ -246,6 +246,7 @@ class AgcDashController():
                     fig_in['layout']['shapes'] = new_shapes
 
             in_f_carrier = in_f_carrier*1000
+            in_data_rate = in_data_rate*1000
             (ref_i,ref_q) = self.model.ref_signal(in_sig_type, in_f_carrier,in_data_rate)
 
             handles = get_envelope_handles(fig_in['layout']['shapes'])

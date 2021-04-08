@@ -20,12 +20,12 @@ _in_control_panel = lambda state : dbc.Container([
                 ], className='mt-1'),
                      dbc.InputGroup([
                         dbc.InputGroupAddon("Data", addon_type="prepend"),
-                        dcc.Slider(id='in-f-data', min=500,max=10000, value=state['fm'], className="form-control dbc-slider"),
-                        dbc.InputGroupAddon(str(state['fm'])+" Hz",id='in-f-data-label', addon_type="append"),
+                        dcc.Slider(id='in-f-data', min=35,max=750, value=state['fm'], className="form-control dbc-slider"),
+                        dbc.InputGroupAddon(str(state['fm']/1000)+" kHz",id='in-f-data-label', addon_type="append"),
                 ], className='mt-1'),
                     dbc.InputGroup([
                         dbc.InputGroupAddon("Carrier", addon_type="prepend"),
-                        dcc.Slider(id='in-f-carrier',min=10,max=100,step=1, value=(state['fc']/1000), className="form-control dbc-slider"),
+                        dcc.Slider(id='in-f-carrier',min=750,max=7500,step=50, value=(state['fc']/1000), className="form-control dbc-slider"),
                         dbc.InputGroupAddon(str(state['fc']/1000)+" kHz", id='in-f-carrier-label', addon_type="append")
                 ], className='mt-1'),
                 ]),
