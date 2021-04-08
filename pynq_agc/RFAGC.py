@@ -23,12 +23,29 @@ class RFAGC(DefaultHierarchy):
             return True
         return False
 
-    def __init__(self, description, fs_ctrl = 75e6, fs = 1.024e9, N = 4*32768):
+    def __init__(self, description, fs_ctrl = 75e6, fs = 1.024e9, N = 4*32768, init_rf_clks=True):
 
         super().__init__(description)
 
 
-        # TODO Set ref clks for RFSoC with 2x2 reset
+        # Setup ZCU111 clocks and RF channels
+        if os.getenv('BOARD') == 'ZCU111':
+            if init_rf_clks:
+                xrfclk.set_all_ref_clks(409.6)
+            self.adc_tile = self.rf.adc_tiles[0]
+            self.adc_block = self.adc_tile.blocks[0]
+            self.dac_tile = self.rf.dac_tiles[1]
+            self.dac_block = self.dac_tile.blocks[2]
+
+        # Setup RFSoC2x2 clocks, RF channels, and handle the I2C reset
+        if os.getenv('BOARD') == 'RFSoC2x2':
+            self._RFSoC2x2_init_i2c()
+            if init_rf_clks:
+                self._RFSoC2x2_init_rf_clks()
+            self.adc_tile = self.rf.adc_tiles[0]
+            self.adc_block = self.adc_tile.blocks[0]
+            self.dac_tile = self.rf.dac_tiles[1]
+            self.dac_block = self.dac_tile.blocks[0]
 
         # Input paramters
         self._fs_ctrl = fs_ctrl
@@ -40,16 +57,39 @@ class RFAGC(DefaultHierarchy):
         self._t           = np.array([i/fs for i in range(N)])
 
         # Alias for RF DC components
-        self.adc_tile = self.rf.adc_tiles[0]
-        self.adc_block = self.adc_tile.blocks[0]
-        self.dac_tile = self.rf.dac_tiles[1]
-        self.dac_block = self.dac_tile.blocks[2]
         self.thres_low = self.adc_block.thresholds[0]
         self.thres_high = self.adc_block.thresholds[1]
 
         # Allocate buffers
         self._buf_tx  = allocate(shape=(N,), dtype=np.int16)
         self._buf_rx  = allocate(shape=(N,), dtype=np.int16)
+
+    def _RFSoC2x2_init_i2c(self):
+        """Initialize the I2C control drivers on RFSoC2x2.
+        This should happen after a bitstream is loaded since I2C reset
+        is connected to PL pins. The I2C-related drivers are made loadable
+        modules so they can be removed or inserted.
+        """
+        module_list = ['i2c_dev', 'i2c_mux_pca954x', 'i2c_mux']
+        for module in module_list:
+            cmd = "if lsmod | grep {0}; then rmmod {0}; fi".format(module)
+            ret = os.system(cmd)
+            if ret:
+                raise RuntimeError(
+                    'Removing kernel module {} failed.'.format(module))
+
+        module_list.reverse()
+        for module in module_list:
+            cmd = "modprobe {}".format(module)
+            ret = os.system(cmd)
+            if ret:
+                raise RuntimeError(
+                    'Inserting kernel module {} failed.'.format(module))
+
+    def _RFSoC2x2_init_rf_clks(self, lmk_freq=122.88, lmx_freq=409.6):
+        """Initialise the LMX and LMK clocks for RF-DC operation.
+        """
+        xrfclk.set_ref_clks(lmk_freq=lmk_freq, lmx_freq=lmx_freq)
 
     @property
     def N(self):
