@@ -23,10 +23,10 @@ $(IP_DAGC):
 $(Z2_LOOPBACK): $(IP_DAGC)
 	make -C boards/Pynq-Z2
 
-$(ZCU111_LOOPBACK): $(IP_DAGC)
+$(ZCU111_LOOPBACK): $(IP_DAGC) $(IP_AAGC)
 	make -C boards/ZCU111
 
-$(2x2_LOOPBACK): $(IP_DAGC)
+$(2x2_LOOPBACK): $(IP_DAGC) $(IP_AAGC)
 	make -C boards/RFSoC2x2
 
 clean:
