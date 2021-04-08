@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 # global variables
 board = os.environ['BOARD']
 repo_board_folder = f'boards/{board}'
-repo_notebook_folder = f'notebooks'
+repo_notebook_folder = f'boards/{board}/notebooks'
 board_notebooks_dir = os.environ['PYNQ_JUPYTER_NOTEBOOKS']
 package_name = 'pynq_agc'
 hw_data_files = ['assets/styles.css']
