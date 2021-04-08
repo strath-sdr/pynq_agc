@@ -1,0 +1,12 @@
+set_property PACKAGE_PIN AJ15 [get_ports {gain[0]}]
+set_property PACKAGE_PIN AL15 [get_ports {gain[1]}]
+set_property PACKAGE_PIN AJ16 [get_ports {gain[2]}]
+set_property PACKAGE_PIN AK16 [get_ports {gain[3]}]
+set_property PACKAGE_PIN AM17 [get_ports {gain[4]}]
+set_property PACKAGE_PIN AP15 [get_ports {gain[5]}]
+set_property PACKAGE_PIN AL16 [get_ports {gain[6]}]
+set_property PACKAGE_PIN AK17 [get_ports {gain[7]}]
+set_property IOSTANDARD LVCMOS18 [get_ports {gain[?]}]
+
+set_property PACKAGE_PIN AT9 [get_ports "lmk_reset[0]"]
+set_property IOSTANDARD LVCMOS18 [get_ports "lmk_reset[0]"]
