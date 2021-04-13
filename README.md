@@ -4,13 +4,19 @@
 
 ## Introduction
 
-We present a digital Automatic Gain Control (AGC) circuit with interactive
-control of it's parameters. This is (currently!) a purely digital loopback
-system, so no extra hardware is required. We'll generate various input signals,
-explore some interesting effects of the AGC algorithm, and practice tweaking our
-parameters for best performance. The design of this AGC example will be
-explored, featuring various hardware arithmetic approximations for power
-estimation, logarithms and exponentiation.
+We present two Automatic Gain Control (AGC) circuits with interactive control of
+their parameters. The first is a purely digital loopback system, so no extra
+hardware is required. The second is a less complex AGC design that communicates
+with the analogue world using a [VeGA
+amplifier](https://www.nooelec.com/store/downloads/dl/file/id/103/product/334/vega_datasheet_revision_1.pdf)
+from Nooelec and the RFSoC's ADC threshold features. The first example supports
+the PYNQ-Z2, ZCU111, and RFSoC2x2 boards, while the second only supports ZCU111
+and RFSoC2x2.
+
+We'll generate various input signals, explore some interesting effects of the
+AGC algorithm, and practice tweaking our parameters for best performance. The
+design of this AGC example will be explored, featuring various hardware
+arithmetic approximations for power estimation, logarithms and exponentiation.
 
 ![AGC widget in action](./demonstration.gif)
 
@@ -28,15 +34,26 @@ using a web browser `https://<IP address>:9090/lab`.
 Open a terminal in Jupyter Lab and run the following command:
 
 ```console
-root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.2/pynq_agc.tar.gz
+root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.3/pynq_agc.tar.gz
 ```
-
-> Note this link won't work on the board until the repo is public. For now,
-> we're using my copy from
-> `https://cramsay.co.uk/content/images/2021/02/pynq_agc_v0.2.tar.gz`
 
 The notebook should now be available in the `pynq_agc` folder in your Jupyter
 Workspace.
+
+For the ZCU111 we'll need to patch the `xrfdc` driver in order to access the ADC's thresholding features. See the section below for instructions for patching this driver.
+
+## Patching the ZCU111 xrfdc driver
+
+This procedure will overwrite the `xrfdc`'s `__init__.py`. You will not lose any
+xrfdc functionality --- you'll only gain thresholding capabilities and access to
+a few new registers.
+
+In the terminal window of Jupyter Lab, run the following to grab the file from our fork:
+
+```console
+root@pynq:/home/xilinx# git clone https://github.com/dnorthcote/ZCU111-PYNQ
+root@pynq:/home/xilinx# cp ZCU111-PYNQ/ZCU111/packages/xrfdc/pkg/xrfdc/__init__.py /usr/local/lib/python3.6/dist-packages/xrfdc/__init__.py
+```
 
 ## Building from Source
 
