@@ -28,7 +28,7 @@ using a web browser `https://<IP address>:9090/lab`.
 Open a terminal in Jupyter Lab and run the following command:
 
 ```console
-root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.3/pynq_agc.tar.gz
+root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.3.1/pynq_agc.tar.gz
 ```
 
 The notebook should now be available in the `pynq_agc` folder in your Jupyter
@@ -43,11 +43,19 @@ On Linux the only prerequisite is having Vivado 2020.1 installed and in your
 `PATH` variable. We supply a [nix shell](https://nixos.org/) which will handle
 the rest of the dependencies for you.
 
+If you don't already have curl, install it with:
+
+```console
+sdr@strath$ sudo apt install curl
+```
+
 If you don't already have the nix package manager, install it with:
 
 ```console
 sdr@strath$ curl -L https://nixos.org/nix/install | sh
 ```
+
+Don't forget to follow the environment variable instructions given on your terminal after nix installation.
 
 To rebuild our project, we just need to source our nix shell (this might take a
 while to run the first time --- it's gathering all of the software we need!) and
