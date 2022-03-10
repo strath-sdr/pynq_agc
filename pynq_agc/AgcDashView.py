@@ -1,10 +1,9 @@
-from dash import dcc
-from dash import html
-
-# catch deprecation warning from bootstrap import
+# catch dash deprecation warnings 
 import warnings
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
+    from dash import dcc
+    from dash import html
     import dash_bootstrap_components as dbc
 
 _in_control_panel = lambda state : dbc.Container([
