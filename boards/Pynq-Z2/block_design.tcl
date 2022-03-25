@@ -20,7 +20,7 @@ set script_folder [_tcl::get_script_folder]
 ################################################################
 # Check if script is running in correct Vivado version.
 ################################################################
-set scripts_vivado_version 2020.1
+set scripts_vivado_version 2020.2
 set current_vivado_version [version -short]
 
 if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
@@ -708,7 +708,34 @@ proc create_root_design { parentCell } {
    CONFIG.PCW_MIO_9_PULLUP {enabled} \
    CONFIG.PCW_MIO_9_SLEW {slow} \
    CONFIG.PCW_MIO_PRIMITIVE {54} \
-   CONFIG.PCW_MIO_TREE_PERIPHERALS {GPIO#Quad SPI Flash#Quad SPI Flash#Quad SPI Flash#Quad SPI Flash#Quad SPI Flash#Quad SPI Flash#GPIO#Quad SPI Flash#ENET Reset#GPIO#GPIO#GPIO#GPIO#UART 0#UART 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#USB 0#USB 0#USB 0#USB 0#USB 0#USB 0#USB 0#USB 0#USB 0#USB 0#USB 0#USB 0#SD 0#SD 0#SD 0#SD 0#SD 0#SD 0#USB Reset#SD 0#GPIO#GPIO#GPIO#GPIO#Enet 0#Enet 0} \
+   CONFIG.PCW_MIO_TREE_PERIPHERALS { \
+     0#Enet 0 \
+     0#Enet 0 \
+     0#Enet 0 \
+     0#Enet 0 \
+     0#Enet 0 \
+     0#Enet 0 \
+     0#Enet 0 \
+     0#SD 0#USB \
+     0#SD 0#USB \
+     0#SD 0#USB \
+     0#UART 0#Enet \
+     0#USB 0#SD \
+     0#USB 0#SD \
+     0#USB 0#SD \
+     0#USB 0#SD \
+     0#USB 0#SD \
+     0#USB 0#SD \
+     Flash#ENET Reset#GPIO#GPIO#GPIO#GPIO#UART \
+     Flash#GPIO#Quad SPI \
+     Flash#Quad SPI \
+     Flash#Quad SPI \
+     Flash#Quad SPI \
+     Flash#Quad SPI \
+     Flash#Quad SPI \
+     GPIO#Quad SPI \
+     Reset#SD 0#GPIO#GPIO#GPIO#GPIO#Enet \
+   } \
    CONFIG.PCW_MIO_TREE_SIGNALS {gpio[0]#qspi0_ss_b#qspi0_io[0]#qspi0_io[1]#qspi0_io[2]#qspi0_io[3]/HOLD_B#qspi0_sclk#gpio[7]#qspi_fbclk#reset#gpio[10]#gpio[11]#gpio[12]#gpio[13]#rx#tx#tx_clk#txd[0]#txd[1]#txd[2]#txd[3]#tx_ctl#rx_clk#rxd[0]#rxd[1]#rxd[2]#rxd[3]#rx_ctl#data[4]#dir#stp#nxt#data[0]#data[1]#data[2]#data[3]#clk#data[5]#data[6]#data[7]#clk#cmd#data[0]#data[1]#data[2]#data[3]#reset#cd#gpio[48]#gpio[49]#gpio[50]#gpio[51]#mdc#mdio} \
    CONFIG.PCW_M_AXI_GP0_ENABLE_STATIC_REMAP {0} \
    CONFIG.PCW_M_AXI_GP0_ID_WIDTH {12} \
@@ -1130,7 +1157,6 @@ proc create_root_design { parentCell } {
   # Restore current instance
   current_bd_instance $oldCurInst
 
-  validate_bd_design
   save_bd_design
 }
 # End of create_root_design()
@@ -1142,4 +1168,6 @@ proc create_root_design { parentCell } {
 
 create_root_design ""
 
+
+common::send_gid_msg -ssname BD::TCL -id 2053 -severity "WARNING" "This Tcl script was generated from a block design that has not been validated. It is possible that design <$design_name> may result in errors during validation."
 

@@ -39,5 +39,5 @@ wait_on_run impl_1
 
 # Export files (including HWH for PYNQ)
 file mkdir ./bin
-file copy -force ./$proj_name/$proj_name.srcs/sources_1/bd/$bd_name/hw_handoff/$bd_name.hwh ./bin/agc_loopback.hwh
+file copy -force ./$proj_name/$proj_name.gen/sources_1/bd/$bd_name/hw_handoff/$bd_name.hwh ./bin/agc_loopback.hwh
 file copy -force ./$proj_name/$proj_name.runs/impl_1/${bd_name}_wrapper.bit ./bin/agc_loopback.bit

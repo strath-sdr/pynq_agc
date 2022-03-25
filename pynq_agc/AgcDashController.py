@@ -1,12 +1,16 @@
 from .AgcDashView import view_template
-import dash
-import dash_bootstrap_components as dbc
 import numpy as np
 import ast
-from dash.dependencies import Input, Output, State
-from jupyter_dash import JupyterDash
 from netifaces import AF_INET, AF_INET6, AF_LINK, AF_PACKET, AF_BRIDGE, ifaddresses
 
+# catch dash deprecation warnings
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import dash
+    from dash.dependencies import Input, Output, State
+    from jupyter_dash import JupyterDash
+    import dash_bootstrap_components as dbc
 
 # Pure helper functions
 

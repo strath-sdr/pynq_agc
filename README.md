@@ -37,9 +37,9 @@ Workspace.
 ## Building from Source
 
 Our hardware design is written in [Clash](https://clash-lang.org/) and
-implemented with Vivado 2020.1.
+implemented with Vivado 2020.2.
 
-On Linux the only prerequisite is having Vivado 2020.1 installed and in your
+On Linux the only prerequisite is having Vivado 2020.2 installed and in your
 `PATH` variable. We supply a [nix shell](https://nixos.org/) which will handle
 the rest of the dependencies for you.
 
