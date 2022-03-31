@@ -16,7 +16,7 @@ estimation, logarithms and exponentiation.
 
 ## Quick Start
 
-This repository is compatible with [PYNQ images v2.6 and
+This repository is compatible with [PYNQ images v2.7 and
 greater](https://github.com/Xilinx/PYNQ/releases) for the
 [Pynq-Z2](https://www.tul.com.tw/productspynq-z2.html),
 [ZCU111](https://www.xilinx.com/products/boards-and-kits/zcu111.html) and the
