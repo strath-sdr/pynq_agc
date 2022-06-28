@@ -19,8 +19,10 @@ estimation, logarithms and exponentiation.
 This repository is compatible with [PYNQ images v2.7 and
 greater](https://github.com/Xilinx/PYNQ/releases) for the
 [Pynq-Z2](https://www.tul.com.tw/productspynq-z2.html),
-[ZCU111](https://www.xilinx.com/products/boards-and-kits/zcu111.html) and the
-[RFSoC2x2]().
+[ZCU111](https://www.xilinx.com/products/boards-and-kits/zcu111.html),
+[RFSoC2x2](https://www.rfsoc-pynq.io/),
+and the
+[RFSoC4x2](https://www.rfsoc-pynq.io/).
 
 Connect to the board with **Jupyter Lab** in a browser (not Jupyter Notebook) by
 using a web browser `https://<IP address>:9090/lab`.
@@ -28,7 +30,7 @@ using a web browser `https://<IP address>:9090/lab`.
 Open a terminal in Jupyter Lab and run the following command:
 
 ```console
-root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.3.3/pynq_agc.tar.gz
+root@pynq:/home/xilinx# pip3 install https://github.com/strath-sdr/pynq_agc/releases/download/v0.3.4/pynq_agc.tar.gz
 ```
 
 The notebook should now be available in the `rfsoc-studio/pynq_agc` folder in your Jupyter Workspace.
